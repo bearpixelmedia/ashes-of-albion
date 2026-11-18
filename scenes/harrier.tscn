@@ -1,0 +1,114 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/foe.gd" id="1"]
+[ext_resource type="Material" path="res://materials/armor.tres" id="2"]
+[ext_resource type="Material" path="res://materials/metal.tres" id="3"]
+[ext_resource type="Material" path="res://materials/cloth_blue.tres" id="4"]
+[ext_resource type="Material" path="res://materials/bar_bg.tres" id="5"]
+[ext_resource type="Material" path="res://materials/bar_fill.tres" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/projectile.tscn" id="7"]
+[ext_resource type="Material" path="res://materials/flame.tres" id="8"]
+
+[sub_resource type="CapsuleShape3D" id="body_col"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="body_mesh"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="SphereMesh" id="head_mesh"]
+radius = 0.25
+height = 0.5
+
+[sub_resource type="BoxMesh" id="tabard_mesh"]
+size = Vector3(0.5, 1.2, 0.08)
+
+[sub_resource type="BoxMesh" id="bow_mesh"]
+size = Vector3(0.06, 1.1, 0.06)
+
+[sub_resource type="BoxMesh" id="bolt_mesh"]
+size = Vector3(0.05, 0.05, 0.5)
+
+[sub_resource type="QuadMesh" id="bar_bg_quad"]
+size = Vector2(1.4, 0.16)
+
+[sub_resource type="QuadMesh" id="bar_fill_quad"]
+size = Vector2(1.4, 0.16)
+
+[node name="Harrier" type="CharacterBody3D"]
+script = ExtResource("1")
+kind = 1
+max_hp = 90.0
+move_speed = 3.0
+aggro_range = 12.0
+windup_time = 0.6
+recover_time = 1.6
+attack_damage = 10.0
+poise_damage = 20.0
+shoot_range = 14.0
+preferred_min = 7.0
+attack_cooldown = 2.2
+projectile_damage = 12.0
+projectile_poise = 16.0
+projectile_scene = ExtResource("7")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.9, 0)
+shape = SubResource("body_col")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+mesh = SubResource("body_mesh")
+surface_material_override/0 = ExtResource("2")
+
+[node name="Tabard" type="MeshInstance3D" parent="Visual"]
+position = Vector3(0, 0.35, -0.33)
+mesh = SubResource("tabard_mesh")
+surface_material_override/0 = ExtResource("4")
+
+[node name="Head" type="MeshInstance3D" parent="Visual"]
+position = Vector3(0, 1.05, 0)
+mesh = SubResource("head_mesh")
+surface_material_override/0 = ExtResource("3")
+
+[node name="WeaponPivot" type="Node3D" parent="Visual"]
+position = Vector3(0.5, 0.7, 0)
+rotation = Vector3(0, -0.4, 0)
+
+[node name="Bow" type="MeshInstance3D" parent="Visual/WeaponPivot"]
+position = Vector3(0, 0, -0.35)
+mesh = SubResource("bow_mesh")
+surface_material_override/0 = ExtResource("3")
+
+[node name="NockedBolt" type="MeshInstance3D" parent="Visual/WeaponPivot"]
+position = Vector3(0, 0, -0.35)
+mesh = SubResource("bolt_mesh")
+surface_material_override/0 = ExtResource("8")
+
+[node name="HealthBar" type="Node3D" parent="."]
+position = Vector3(0, 2.3, 0)
+
+[node name="BarBG" type="MeshInstance3D" parent="HealthBar"]
+mesh = SubResource("bar_bg_quad")
+surface_material_override/0 = ExtResource("5")
+
+[node name="BarFill" type="MeshInstance3D" parent="HealthBar"]
+mesh = SubResource("bar_fill_quad")
+surface_material_override/0 = ExtResource("6")
+
+[node name="NameLabel" type="Label3D" parent="HealthBar"]
+position = Vector3(0, 0.42, 0)
+text = "Harrier"
+font_size = 44
+outline_size = 10
+
+[node name="Telegraph" type="Label3D" parent="."]
+position = Vector3(0, 2.9, 0)
+visible = false
+text = "!"
+modulate = Color(0.95, 0.6, 0.25, 1)
+font_size = 72
+outline_size = 14
+billboard = 1
