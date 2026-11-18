@@ -7,6 +7,16 @@ extends Control
 @export var tint := Color(0.97, 0.87, 0.6)
 
 
+func set_kind(value: String) -> void:
+	kind = value
+	queue_redraw()
+
+
+func set_tint(value: Color) -> void:
+	tint = value
+	queue_redraw()
+
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
@@ -65,6 +75,26 @@ func _draw() -> void:
 						Vector2(side * 0.07, side * 0.11)), tint, true)
 			draw_rect(Rect2(c + Vector2(-side * 0.06, side * 0.12),
 					Vector2(side * 0.12, side * 0.18)), tint, true)
+		"bow":
+			draw_arc(c + Vector2(-side * 0.14, 0), side * 0.34, -PI * 0.5, PI * 0.5, 20,
+					tint, w, true)
+			draw_line(c + Vector2(-side * 0.14, -side * 0.34),
+					c + Vector2(-side * 0.14, side * 0.34), tint, w * 0.6, true)
+			draw_line(c + Vector2(-side * 0.2, 0), c + Vector2(side * 0.28, 0),
+					tint, w * 0.8, true)
+			draw_line(c + Vector2(side * 0.28, 0), c + Vector2(side * 0.14, -side * 0.12),
+					tint, w * 0.7, true)
+			draw_line(c + Vector2(side * 0.28, 0), c + Vector2(side * 0.14, side * 0.12),
+					tint, w * 0.7, true)
+		"dash":
+			for i in 2:
+				var x := c.x - side * 0.16 + i * side * 0.22
+				var chevron := PackedVector2Array([
+					Vector2(x - side * 0.1, c.y - side * 0.2),
+					Vector2(x + side * 0.1, c.y),
+					Vector2(x - side * 0.1, c.y + side * 0.2),
+				])
+				draw_polyline(chevron, tint, w, true)
 		"lock":
 			draw_arc(c + Vector2(0, -side * 0.1), side * 0.2, PI, TAU, 20, tint, w, true)
 			draw_rect(Rect2(c + Vector2(-side * 0.26, -side * 0.1),

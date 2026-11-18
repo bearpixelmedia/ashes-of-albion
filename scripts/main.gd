@@ -13,6 +13,7 @@ const BULWARK_SCENE := preload("res://scenes/bulwark.tscn")
 const WARDEN_SCENE := preload("res://scenes/arena_warden.tscn")
 
 @onready var player = $Player
+@onready var companion = $Companion
 @onready var dummy = $TrainingDummy
 @onready var warden = $ArenaWarden
 @onready var hud = $UI/HUD
@@ -34,6 +35,7 @@ var _wave_pending := 0.0
 
 
 func _ready() -> void:
+	SaveGame.restore()  # a direct run of the world still boots the saved run
 	add_to_group("world")
 	arena_trigger.body_entered.connect(_on_arena_body_entered)
 	arena_trigger.body_exited.connect(_on_arena_body_exited)
@@ -50,6 +52,8 @@ func _ready() -> void:
 	hud.set_zone(zone)
 	hud.set_wave(0, MAX_WAVE)
 	hud.set_class(ClassKit.by_id(player.class_id))
+	hud.set_level(Progression.level)
+	hud.set_companion(companion)
 	dummy.reset()
 	warden.reset()
 
@@ -64,6 +68,7 @@ func apply_class(id: String) -> void:
 func _process(delta: float) -> void:
 	if _wave_active:
 		arena_time += delta
+		hud.set_elapsed(arena_time)
 	if _wave_pending > 0.0:
 		_wave_pending -= delta
 		if _wave_pending <= 0.0:
@@ -124,6 +129,7 @@ func _clear_spawned() -> void:
 func _on_foe_defeated(foe: Node) -> void:
 	kills += 1
 	hud.set_score(kills, deaths)
+	award_xp(Progression.XP_PER_KILL)
 	if not _wave_active or zone != ZONE_ARENA:
 		return
 	_alive.erase(foe)
@@ -181,6 +187,16 @@ func _results_body() -> String:
 	var minutes := int(arena_time) / 60
 	var seconds := int(arena_time) % 60
 	return "Kills %d    Deaths %d    Time %d:%02d" % [kills, deaths, minutes, seconds]
+
+
+# --- progression ------------------------------------------------------------
+
+## Bank experience, refresh the HUD's level readout and persist the run. Each
+## completed level adds a skill point to the tree's pool.
+func award_xp(amount: int) -> void:
+	Progression.add_xp(amount)
+	hud.set_level(Progression.level)
+	SaveGame.save()
 
 
 # --- skill tree -------------------------------------------------------------

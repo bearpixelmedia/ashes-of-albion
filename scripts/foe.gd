@@ -226,10 +226,19 @@ func _ranged_step(to_target: Vector3, dist: float, delta: float) -> void:
 
 
 func _nearest_player() -> Node3D:
+	## The champion is the default target; a recruited, standing companion is
+	## fair game when she is the closer of the two.
 	var best: Node3D = null
 	var best_dist := aggro_range * 4.0
 	for node in get_tree().get_nodes_in_group("player"):
 		if not (node is Node3D) or node.is_dead:
+			continue
+		var d: float = global_position.distance_to(node.global_position)
+		if d < best_dist:
+			best_dist = d
+			best = node
+	for node in get_tree().get_nodes_in_group("companions"):
+		if not (node is Node3D) or not node.recruited or node.is_downed:
 			continue
 		var d: float = global_position.distance_to(node.global_position)
 		if d < best_dist:

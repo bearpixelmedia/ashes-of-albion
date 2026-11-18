@@ -12,6 +12,10 @@ const SELECT_SCENE := "res://scenes/character_select.tscn"
 var requested_scene := ""
 var auto_navigate := true
 
+## True while _ready seeds the widgets from the save, so those writes do not
+## bounce straight back to disk.
+var _bootstrapping := true
+
 @onready var title_label: Label = %TitleLabel
 @onready var continue_label: Label = %ContinueLabel
 @onready var enter_button: Button = %EnterWorld
@@ -25,6 +29,7 @@ var auto_navigate := true
 
 
 func _ready() -> void:
+	SaveGame.restore()  # the champion, tree ranks and settings of the last launch
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	enter_button.pressed.connect(enter_world)
 	character_button.pressed.connect(open_character_select)
@@ -40,6 +45,7 @@ func _ready() -> void:
 	var champion := str(ClassKit.by_id(ClassKit.selected).get("name", "Fighter"))
 	continue_label.text = "Continue as the %s" % champion
 	enter_button.grab_focus()
+	_bootstrapping = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -82,12 +88,16 @@ func _on_volume_changed(value: float) -> void:
 	var linear := clampf(value / 100.0, 0.0, 1.0)
 	AudioServer.set_bus_mute(0, linear <= 0.0)
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(linear, 0.0001)))
+	if not _bootstrapping:
+		SaveGame.save()
 
 
 func _on_fullscreen_toggled(pressed: bool) -> void:
 	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if pressed \
 			else DisplayServer.WINDOW_MODE_WINDOWED
 	DisplayServer.window_set_mode(mode)
+	if not _bootstrapping:
+		SaveGame.save()
 
 
 func quit_game() -> void:

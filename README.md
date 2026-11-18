@@ -21,6 +21,7 @@ square with the loop reset and your score preserved.
 - World scene: **`res://scenes/main.tscn`** (loads directly with the last committed class; useful for debugging, defaults to the Fighter).
 - Standalone lineup view: run **`res://scenes/lineup.tscn`** (F6) for a clean concept view of the eight champions.
 - Headless verification: `godot --headless --path ashes-of-albion res://tests/smoke.tscn`
+- Progress (champion, level, tree ranks, volume/fullscreen) is saved to **`user://save.cfg`** on boot load and after every change; delete that file to start fresh.
 
 ## Controls
 
@@ -30,6 +31,7 @@ square with the loop reset and your score preserved.
 | Mouse | Orbit camera (over-the-shoulder, spring-arm collision) — on the select screen: click rows and buttons |
 | `Shift` | Sprint (drains stamina) |
 | `Space` | Jump |
+| `E` | Recruit the cleric in the square / pick her back up when down (within 4 m) |
 | `Q` | Lock on / off nearest attackable target (reticle appears; ranger bolts auto-aim at it) |
 | `LMB` | **Fighter:** weapon combo 25 → 25 → **40 finisher** (0.5 s cooldown; chain resets after 1.2 s) · **Ranger:** loose an arrow (25 dmg, ranged) |
 | `1` | **Fighter:** **Cleave** — 45 dmg arc (4.5 m cone, hits every foe), 30 stamina, 6 s CD · **Ranger:** **Power Shot** — 50 dmg bolt, 25 stamina, 5 s CD |
@@ -226,6 +228,97 @@ Run **`res://scenes/lineup.tscn` directly (F6)** for a clean, framed view of
 the row (it then adds its own camera/light/floor); in-world it is instanced
 into `main.tscn` with `standalone_view = false`.
 
+## Persistence
+
+The run is saved to **`user://save.cfg`** (Linux:
+`~/.local/share/godot/app_userdata/Ashes of Albion/save.cfg`) as a
+`ConfigFile` with three sections:
+
+| Section | Keys | Written by |
+|---|---|---|
+| `champion` | `class`, `level`, `xp`, `secondary`, `tree` (node → rank) | picker commit, skill-tree spend/reset, Secondary pick |
+| `audio` | `volume`, `muted` | the title screen's settings panel |
+| `display` | `fullscreen` | the title screen's settings panel |
+
+`scripts/save_game.gd` (`SaveGame`) captures the live statics —
+`ClassKit.selected`, `Progression.level`/`xp`, `Progression.secondary`,
+`SkillTreeData.ranks`, the master bus and the window mode — and `restore()`
+runs once on the title screen (and again on a direct `main.tscn` run). Saved
+ranks are clamped to each node's maximum and an unknown class falls back to the
+current one, so a stale or hand-edited file cannot break a launch. Delete the
+file to reset the run.
+
+The headless suite points `SaveGame.path` at `user://smoke_save.cfg` and turns
+`SaveGame.auto` off, so a developer's own save never leaks into the checks and
+the suite's writes are cleaned up afterwards.
+
+## Progression
+
+Kills feed experience and experience feeds the Fighter tree:
+
+- **XP** — every defeated foe banks 50 XP (`Progression.XP_PER_KILL`). The
+  curve is flat at **100 XP per level**, so two kills complete a level.
+- **Levels → points** — the champion starts at **level 12**, the state the
+  concept art shows, which owns the tree's eight-point pool. Every level above
+  12 adds **one skill point** (`Progression.points_total()`), so the tree's
+  `Available Skill Points` counter, orb row and `Ranks n / 21 spent` summary all
+  grow as you level. A level-25 champion holds 21 points — the tree's full
+  unlocked capacity.
+- **HUD readout** — `Lv n` sits beside the class name above the hotbar and
+  follows level-ups live, including the ones that happen on a kill.
+- **Level 25 rail** — the Secondary Archetype rail is padlocked and reads
+  `Unlocks at Level 25` until the champion reaches 25; then the padlock and
+  shield clear and the rail opens into the eight archetypes. The pick is
+  identity only for now (no secondary kit exists) and is saved with the run.
+
+XP and level are part of the save file, so a levelled champion comes back at
+the same level with the same points after a relaunch.
+
+## The cleric companion
+
+**Maelis Orr** stands in the town square with an **ALLY** nameplate and a
+`Press E to recruit` prompt. Press `E` within 4 m and she joins the party:
+
+- **Follows** — she trails the champion at ~2.4 m, catching up at 4.2 m/s and
+  settling when close.
+- **Heals on a cooldown** — when the champion is below 75 % health and within
+  9 m, she mends 18 HP and starts an 8 s cooldown. A full-health, dead or
+  out-of-range champion gets nothing.
+- **Can be downed** — once recruited she is a legal arena target whenever she
+  is the closer of the two, so her 80 HP can be emptied. She drops for 8 s with
+  no following and no healing, the party frame darkens and reads `Downed`, then
+  she gets back up at half health; press `E` beside her to pick her up early.
+- **Live party frame** — row two of the HUD reads her name, role and state over
+  a bar fed from her health every frame.
+
+She is not in the save file yet: a fresh session finds her waiting in the
+square again.
+
+## HUD (concept image 6)
+
+The in-world HUD follows the concept's layout: **party frames top-left**, the
+**Combatant objective bar** top-centre, stat bars bottom-left, the **icon
+hotbar** bottom-centre, scoreboard top-centre, minimap top-right and the
+lock-on reticle in the middle.
+
+- **Party frames** (`scripts/hud.gd`) — two dark, gold-trimmed rows, each a
+tree crest, name and role over a slim health bar. The first row is the live
+champion (name and role from `ClassKit`, health straight off `player.hp`); the
+second is **Maelis Orr**, the cleric companion, with her real health and state
+(`In the square` / `Following` / `Downed`).
+- **Objective bar** — a `COMBATANT` header, one gold segment per wave (lit up to
+the current wave), the `Wave n / 3` ticker and the run timer, which `main.gd`
+feeds from `arena_time`. It appears with the wave loop and hides in the square.
+- **Nameplates** (`scripts/nameplate.gd`) — colour-coded faction tags over a
+`Label3D`: the champion is a gold **COMBATANT**, the sparring dummy and the
+cleric companion a green **ALLY**, and every arena foe (warden, harrier,
+bulwark) **CORRUPTED** in red.
+The plates billboard and draw over geometry.
+- **Icon hotbar** — five slots whose skills carry drawn icons from
+`scripts/skill_icon.gd` (Cleave's arc, Second Wind's gust, Power Shot's bow,
+Tumble's chevrons, padlocks for locked slots) above the name and key caption.
+Cooldown countdowns and dimming behave as before.
+
 ## Wave table
 
 | Wave | Composition | Spawn points |
@@ -253,6 +346,7 @@ ashes-of-albion/
 │   ├── skill_tree.tscn      # Fighter Skill Tree board: Swordcraft branches, ranks, locks, Secondary Archetype rail
 │   ├── main.tscn            # world env (dusk sky+fog), moon light, ground, arena trigger, ArenaFoes, ChampionsRow instance
 │   ├── player.tscn          # CharacterBody3D + SpringArm3D/Camera3D + sword (bow built at runtime for the ranger)
+│   ├── companion.tscn       # Maelis Orr: cleric body, ALLY nameplate, recruit prompt
 │   ├── training_dummy.tscn  # damageable + billboard health bar + defeat/reset
 │   ├── arena_warden.tscn    # MELEE variant of foe.gd (Phase 1 behaviour)
 │   ├── harrier.tscn         # RANGED variant: bow + nocked bolt, blue tabard, projectile_scene wired
@@ -260,21 +354,21 @@ ashes-of-albion/
 │   ├── projectile.tscn      # cover-aware bolt; friendly mode (player-fired) vs foe-fired
 │   ├── lineup.tscn          # Champions' Row: 8-figure lineup (standalone concept view)
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
-│   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, results panel, minimap, reticle, damage flash
+│   ├── hud.tscn             # party frames, Combatant objective bar (segments + timer), icon hotbar, stat bars, scoreboard, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), skill_tree_data (nodes, ranks, kit effects), skill_tree (board + point spending), skill_icon + tree_links (drawn art), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
+├── scripts/                 # progression (XP, levels, points), save_game (user:// profile), title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), skill_tree_data (nodes, ranks, kit effects), skill_tree (board + point spending), skill_icon + tree_links (drawn art), nameplate (ally/combatant/corrupted faction tags), companion (recruitable cleric: follow, heal, down), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (party frames + objective bar + icon hotbar), main (wave loop + apply_class), town_layout
 └── tests/
-    ├── smoke.tscn/.gd       # 201-check headless suite: loop + class kits + lineup + select + front end + skill tree (exit code 0/1, 900 s watchdog)
+    ├── smoke.tscn/.gd       # 271-check headless suite: loop + class kits + lineup + select + front end + skill tree + HUD + persistence + progression + companion (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
     ├── probe.gd             # camera placement probe
-    └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 275)
+    └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 339)
 ```
 
 ## Verification (headless, Godot 4.3-stable)
 
 - `--import`: clean, no parse errors.
-- `tests/mesh_audit.gd` (main + character select): **335 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 201/201 checks**, exit code 0
+- `tests/mesh_audit.gd` (main + character select): **339 mesh instances, 0 null meshes**.
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 271/271 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
@@ -282,6 +376,10 @@ ashes-of-albion/
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
   - Phase 5 (20): the project boots on the title screen; the menu offers all four entries and names the last committed champion; Enter World / Character Select request `main.tscn` / `character_select.tscn`; Settings opens and closes, and its volume slider drives the master audio bus; the picker's Back button is live and returns to the title; the world's pause menu opens over the scene, pauses the tree, resumes and unpauses, the `Esc` key opens it, and its Character Select / Title Screen entries unpause the run and request the right scene.
   - Phase 6 (33): the board opens over the paused world with all eleven nodes staged; the concept's starting ranks (Offensive Form 2/3, Defensive Form 1/3, Cleave 1/3, Sundering Strike 1/3, Fortify 1/3) leave two points and two gold orbs; pips read `Rank 1/3`; Whirlwind, Armor Break and Bulwark read `Locked` and refuse ranks; the Secondary Archetype rail reads `Level 25`; spending on Cleave raises its live damage by 6 and spending on Second Wind raises its live heal by 8, then the empty pool blocks further ranks; **Reset** refunds all eight points and returns Cleave to 45 and Second Wind to 35; closing unpauses; and the pause menu's **Skills** button opens the board.
+  - Phase 7 (19): the HUD reads out the champion's level; the HUD stages the champion and the cleric, the champion's frame names the class and tracks live health, and the cleric's frame carries her name and health; the objective bar follows the live wave loop, lights up to the current wave, carries one segment per wave plus the `Wave n / 3` ticker, and formats the run timer as `0:42`; the bar hides again when the run ends; the hotbar stages five icons with Cleave's arc on slot 1 and padlocks on locked slots; the champion's nameplate reads **COMBATANT**, the sparring dummy **ALLY** and the arena warden **CORRUPTED**.
+  - Phase 8 (16): the run writes a save file; champion class, level, experience, secondary archetype, skill-tree ranks and the audio setting all survive a relaunch; a missing file reports no data; **the title screen restores the saved champion, level and name on boot**; the picker's slot card shows the persisted level and committing a champion writes the save; spending a skill point writes the new rank; and the scratch save is cleaned up.
+  - Phase 9 (19): a fresh run starts at the concept's level 12 with its eight-point pool; a kill awards experience and a kill can complete a level; levels grant skill points and the tree pool grows by the extra point; the kill path banks XP and the HUD readout follows; the Secondary Archetype rail is locked below 25 (padlock, `Level 25` hint, refuses a pick), opens at 25 with all eight archetypes, remembers the choice and writes it to the save.
+  - Phase 10 (16): the square stages the cleric unrecruited with an `ALLY` plate; her party frame names her; she can be recruited at full health and the frame reads her live health; she follows the champion; she heals a wounded champion, starts the cooldown, respects it and holds the heal at full health; she can be downed (frame drops to zero) and cannot heal while down, then revives at half health and the frame recovers.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title screen `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
@@ -294,8 +392,9 @@ does not occur with a real renderer.
 
 1. Palette/lighting against the concept set: cool blue dusk vs warm gold torchlight,
    2–3 cel tones, soft shadows, distance fog.
-2. HUD placement vs concept image 4 (bars bottom-left, hotbar bottom-center,
-   minimap top-right, scoreboard top-center) and player framing ≈ 1/3 frame height.
+2. HUD placement vs concept image 6 (party frames top-left, Combatant objective
+   bar with segments + timer top-centre, icon hotbar bottom-centre, faction
+   nameplates over champion/ally/corrupted foes) and player framing ≈ 1/3 frame height.
 3. Walk feel: sprint, jump onto the arena platforms, spring-arm camera collision
    against stalls/walls; lock-on reticle centered on the dummy/warden.
 4. Damage numbers/health bar billboarding readability at gameplay distance.
@@ -308,6 +407,10 @@ does not occur with a real renderer.
    identity of all eight (order, headgear, weapons, summoner ally), nameplate
    readability, the plinth and sign framing; open `lineup.tscn` (F6) for the
    clean comparison view.
+8. Companion feel: Maelis's ALLY plate and recruit prompt readability in the
+   square, her follow spacing and turn as you walk, the heal timing/cooldown,
+   the downed pose and how clearly the party frame reports `Following` /
+   `Downed`.
 8. Phase 3 feel: **Cleave arc readability** (wide swing + how many foes it
    catches), combo finisher impact (25/25/40 cadence and the 1.2 s window),
    Second Wind feedback (heal number/green flash), HUD class label + skill-slot

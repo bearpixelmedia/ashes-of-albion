@@ -30,6 +30,7 @@ var auto_navigate := true
 @onready var enter_button: Button = %EnterWorld
 @onready var back_button: Button = %Back
 @onready var status_label: Label = %StatusLabel
+@onready var slot_level: Label = $LeftPanel/Slot1/Slot1Meta
 
 var _style_base: StyleBoxFlat
 var _style_hover: StyleBoxFlat
@@ -38,6 +39,7 @@ var _style_selected: StyleBoxFlat
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	slot_level.text = "Level %d" % Progression.level
 	_build_styles()
 	_build_rows()
 	var resume := ClassKit.index_of(ClassKit.selected)
@@ -90,6 +92,7 @@ func select_class(index: int) -> void:
 ## Returns the committed class id (start_world wraps this).
 func commit_selection() -> String:
 	ClassKit.selected = str(ClassKit.by_index(selected_index)["id"])
+	SaveGame.save()  # the pick is part of the persistent run
 	return ClassKit.selected
 
 

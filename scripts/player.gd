@@ -353,6 +353,9 @@ func setup_class(id: String) -> void:
 		_bow.visible = true
 	elif _bow != null:
 		_bow.visible = false
+	var plate := get_node_or_null("Nameplate")
+	if plate != null:
+		plate.set_title(str(ClassKit.by_id(id).get("name", id)).to_upper())
 
 
 ## The ranger's bow, built once from primitives the first time it is needed.

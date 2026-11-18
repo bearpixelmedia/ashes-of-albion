@@ -17,6 +17,8 @@ var is_open := false
 var player = null  # the live world player; untyped so its kit fields resolve
 var buttons: Dictionary = {}
 var rank_labels: Dictionary = {}
+var rail_unlocked := false
+var secondary_buttons: Array = []
 
 @onready var board: Control = %Board
 @onready var node_layer: Control = %Nodes
@@ -26,6 +28,9 @@ var rank_labels: Dictionary = {}
 @onready var status_label: Label = %Status
 @onready var summary_label: Label = %Summary
 @onready var rail_hint: Label = %RailHint
+@onready var rail_lock: Control = $Board/Rail/RailLock
+@onready var rail_shield: Control = $Board/Rail/RailShield
+@onready var rail_box: VBoxContainer = $Board/Rail/Chips
 @onready var reset_button: Button = %Reset
 @onready var back_button: Button = %Back
 
@@ -97,6 +102,7 @@ func spend(id: String) -> bool:
 		definition["name"], rank, definition["blurb"]]
 	if player != null and is_instance_valid(player):
 		SkillTreeData.apply_to(player)
+	SaveGame.save()  # ranks are part of the persistent run
 	_refresh()
 	return true
 
@@ -105,8 +111,22 @@ func reset_all() -> void:
 	SkillTreeData.reset()
 	if player != null and is_instance_valid(player):
 		SkillTreeData.apply_to(player)
+	SaveGame.save()
 	status_label.text = "Tree reset — every point refunded."
 	_refresh()
+
+
+## Pick the secondary archetype once the level-25 gate is open. The choice is
+## identity only for now: no secondary kit exists yet, but it persists.
+func choose_secondary(id: String) -> bool:
+	if not Progression.secondary_unlocked() or ClassKit.by_id(id).is_empty():
+		return false
+	Progression.secondary = id
+	status_label.text = "Secondary archetype set to %s." \
+			% str(ClassKit.by_id(id).get("name", id))
+	SaveGame.save()
+	_refresh()
+	return true
 
 
 func _rejection(id: String, definition: Dictionary) -> String:
@@ -122,7 +142,7 @@ func _rejection(id: String, definition: Dictionary) -> String:
 func _refresh() -> void:
 	points_label.text = "Available Skill Points:  %d" % SkillTreeData.points_available()
 	summary_label.text = "Ranks  %d / %d spent" % [
-		SkillTreeData.points_spent(), SkillTreeData.POINTS_TOTAL]
+		SkillTreeData.points_spent(), Progression.points_total()]
 	for definition in SkillTreeData.NODES:
 		var id := str(definition["id"])
 		var label: Label = rank_labels[id]
@@ -140,6 +160,43 @@ func _refresh() -> void:
 			label.add_theme_color_override("font_color",
 					Color(0.5, 0.9, 0.55) if maxed else GOLD_BRIGHT)
 	_rebuild_orbs()
+	_refresh_rail()
+
+
+func _refresh_rail() -> void:
+	## Below level 25 the rail is a padlocked promise; at 25 it opens into the
+	## eight secondary archetypes, and the pick is remembered in the save.
+	rail_unlocked = Progression.secondary_unlocked()
+	for child in rail_box.get_children():
+		rail_box.remove_child(child)
+		child.queue_free()
+	secondary_buttons.clear()
+	rail_lock.visible = not rail_unlocked
+	rail_shield.visible = not rail_unlocked
+	if not rail_unlocked:
+		rail_hint.text = "Unlocks at Level 25"
+		return
+	var chosen := Progression.secondary
+	rail_hint.text = "Unlocked — choose a secondary." if chosen == "" \
+			else "Secondary: %s" % str(ClassKit.by_id(chosen).get("name", chosen))
+	for definition in ClassKit.ARCHETYPES:
+		var id := str(definition["id"])
+		var button := Button.new()
+		button.text = str(definition["name"])
+		button.custom_minimum_size = Vector2(184, 22)
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override("font_size", 11)
+		var style := StyleBoxFlat.new()
+		style.bg_color = definition["body"].darkened(0.55)
+		style.border_color = Color(0.85, 0.66, 0.2, 0.95 if id == chosen else 0.3)
+		style.set_border_width_all(2 if id == chosen else 1)
+		style.set_corner_radius_all(4)
+		button.add_theme_stylebox_override("normal", style)
+		button.add_theme_stylebox_override("hover", style)
+		button.add_theme_stylebox_override("pressed", style)
+		button.pressed.connect(choose_secondary.bind(id))
+		rail_box.add_child(button)
+		secondary_buttons.append(button)
 
 
 func _rebuild_orbs() -> void:

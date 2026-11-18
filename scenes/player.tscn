@@ -1,10 +1,11 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1"]
 [ext_resource type="Material" path="res://materials/armor.tres" id="2"]
 [ext_resource type="Material" path="res://materials/flesh.tres" id="3"]
 [ext_resource type="Material" path="res://materials/metal.tres" id="4"]
 [ext_resource type="Material" path="res://materials/cloth_gold.tres" id="5"]
+[ext_resource type="Script" path="res://scripts/nameplate.gd" id="6"]
 
 [sub_resource type="CapsuleShape3D" id="body_col"]
 radius = 0.35
@@ -55,6 +56,14 @@ surface_material_override/0 = ExtResource("4")
 position = Vector3(0, 0, -0.08)
 mesh = SubResource("pommel_mesh")
 surface_material_override/0 = ExtResource("5")
+
+[node name="Nameplate" type="Label3D" parent="."]
+position = Vector3(0, 2.3, 0)
+text = "FIGHTER"
+font_size = 30
+outline_size = 8
+pixel_size = 0.004
+script = ExtResource("6")
 
 [node name="SpringArm3D" type="SpringArm3D" parent="."]
 position = Vector3(0, 1.4, 0)

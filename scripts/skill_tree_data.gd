@@ -22,8 +22,9 @@ const BASE_MAX_POISE := 100.0
 const GUARD_PER_RANK := 3.0
 
 ## A level-12 champion with six ranks already committed and two points in
-## hand: the state the concept art shows.
-const POINTS_TOTAL := 8
+## hand: the state the concept art shows. Progression.points_total() grows
+## this pool by one per level above 12.
+const POINTS_TOTAL := Progression.BASE_POINTS
 const START_RANKS := {
 	"offensive": 2, "defensive": 1, "cleave": 1, "sunder": 1, "fortify": 1,
 }
@@ -82,6 +83,18 @@ static var ranks: Dictionary = {}
 static var _ready_once := false
 
 
+## Replace the tree with saved ranks (used by the save file on boot). Unknown
+## ids are dropped and every rank is clamped to the node's maximum, so a stale
+## or hand-edited save cannot hand out illegal points.
+static func load_ranks(saved: Dictionary) -> void:
+	_ready_once = true
+	ranks = {}
+	for definition in NODES:
+		var id := str(definition["id"])
+		var cap := maxi(int(definition["max"]), 0)
+		ranks[id] = clampi(int(saved.get(id, 0)), 0, cap)
+
+
 static func ensure() -> void:
 	if _ready_once:
 		return
@@ -120,7 +133,7 @@ static func points_spent() -> int:
 
 
 static func points_available() -> int:
-	return maxi(POINTS_TOTAL - points_spent(), 0)
+	return maxi(Progression.points_total() - points_spent(), 0)
 
 
 static func can_rank(id: String) -> bool:

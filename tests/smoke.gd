@@ -37,6 +37,11 @@ func _frames(n: int) -> void:
 
 
 func _run() -> void:
+	# Persistence stays out of the suite's way: no boot restore, and every save
+	# goes to a scratch file instead of the developer's user://save.cfg.
+	SaveGame.auto = false
+	SaveGame.path = "user://smoke_save.cfg"
+	SaveGame.erase()
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	await _frames(6)
@@ -717,6 +722,7 @@ func _run() -> void:
 			"the menu can also go back to the title screen")
 
 	# ============ Phase 6: fighter skill tree ============
+	Progression.reset()  # the kills above may have levelled the champion
 	SkillTreeData.reset_to_default()
 	SkillTreeData.apply_to(player)
 	var tree = load("res://scenes/skill_tree.tscn").instantiate()
@@ -778,6 +784,237 @@ func _run() -> void:
 	_check(not get_tree().paused, "closing from the menu unpauses the world")
 	SkillTreeData.reset_to_default()
 	SkillTreeData.apply_to(player)
+
+	# ============ Phase 7: HUD art pass (party, objective, plates, icons) ============
+	_check(hud.level_label.text == "Lv %d" % Progression.level,
+			"the HUD reads out the champion's level")
+	_check(hud.party_names.size() == 2, "the HUD stages the champion and the cleric")
+	_check(hud.party_names[0].text.findn("Fighter") >= 0,
+			"the champion's party frame names the class")
+	_check(hud.party_names[1].text.length() > 0 and hud.party_bars[1].value > 0.0,
+			"ally frames carry a name and health")
+	await _frames(2)
+	_check(absf(hud.party_bars[0].value - player.hp) < 0.01,
+			"the champion's party frame tracks live health")
+	_check(hud.objective_panel.visible == (main.wave > 0),
+			"the objective bar follows the live wave loop")
+	_check(hud.objective_filled == clampi(main.wave, 0, 3),
+			"the objective bar lights up to the current wave")
+	hud.set_wave(2, 3)
+	_check(hud.objective_panel.visible, "the objective bar appears with the wave loop")
+	_check(hud.objective_segments.size() == 3, "the objective bar has one segment per wave")
+	_check(hud.objective_filled == 2, "the current wave lights its segments")
+	_check(hud.wave_label.text.findn("Wave 2") >= 0, "the objective bar keeps the wave ticker")
+	hud.set_elapsed(42.0)
+	_check(hud.timer_label.text == "0:42", "the objective timer counts the run")
+	_check(hud.slot_icons.size() == 5, "the hotbar stages five icons")
+	_check(hud.slot_icons[0].kind == "cleave", "slot 1 carries the Cleave icon")
+	_check(hud.slot_icons[2].kind == "lock", "a locked slot shows the padlock icon")
+	_check(player.get_node("Nameplate").text.findn("COMBATANT") >= 0,
+			"the champion's nameplate tags them a Combatant")
+	_check(main.dummy.get_node("HealthBar/NameLabel").text.findn("ALLY") >= 0,
+			"the sparring dummy reads as an Ally")
+	_check(main.warden.get_node("HealthBar/NameLabel").text.findn("CORRUPTED") >= 0,
+			"arena foes read as Corrupted")
+	hud.set_wave(0, 3)
+	_check(not hud.objective_panel.visible and not hud.wave_label.visible,
+			"the objective bar hides when the run ends")
+
+	# ============ Phase 8: persistence (user:// save) ============
+	Progression.level = 9
+	Progression.xp = 30
+	Progression.secondary = "mage"
+	ClassKit.selected = "ranger"
+	SkillTreeData.reset()
+	SkillTreeData.ranks["cleave"] = 2
+	AudioServer.set_bus_mute(0, false)
+	AudioServer.set_bus_volume_db(0, linear_to_db(0.3))
+	SaveGame.save()
+	_check(FileAccess.file_exists(SaveGame.path), "the run writes its save file")
+
+	ClassKit.selected = "fighter"
+	Progression.reset()
+	SkillTreeData.reset_to_default()
+	AudioServer.set_bus_volume_db(0, 0.0)
+	_check(SaveGame.restore_from(SaveGame.path), "the save loads back")
+	_check(ClassKit.selected == "ranger", "the champion class survives a relaunch")
+	_check(Progression.level == 9, "the champion level survives a relaunch")
+	_check(Progression.xp == 30, "the experience bar survives a relaunch")
+	_check(Progression.secondary == "mage", "the secondary archetype survives a relaunch")
+	_check(SkillTreeData.rank_of("cleave") == 2, "skill-tree ranks survive a relaunch")
+	_check(absf(db_to_linear(AudioServer.get_bus_volume_db(0)) - 0.3) < 0.01,
+			"the audio setting survives a relaunch")
+	_check(not SaveGame.restore_from("user://smoke_missing.cfg"),
+			"a missing save reports no data")
+
+	# boot: the title screen picks the saved run up
+	ClassKit.selected = "fighter"
+	Progression.reset()
+	SaveGame.auto = true
+	var boot_title = load("res://scenes/title_screen.tscn").instantiate()
+	boot_title.auto_navigate = false
+	add_child(boot_title)
+	await _frames(3)
+	_check(ClassKit.selected == "ranger", "the title screen restores the saved champion on boot")
+	_check(Progression.level == 9, "the title screen restores the saved level on boot")
+	_check(boot_title.continue_label.text.findn("Ranger") >= 0,
+			"the title screen names the restored champion")
+	SaveGame.auto = false
+	boot_title.queue_free()
+	await _frames(2)
+
+	# the picker shows the persisted level and writes the committed champion
+	Progression.level = 7
+	var card = load("res://scenes/character_select.tscn").instantiate()
+	card.auto_navigate = false
+	add_child(card)
+	await _frames(3)
+	_check(card.slot_level.text == "Level 7", "the slot card shows the persisted level")
+	card.select_class(0)  # Bard
+	card.commit_selection()
+	var written := ConfigFile.new()
+	written.load(SaveGame.path)
+	_check(str(written.get_value("champion", "class", "")) == "bard",
+			"committing a champion writes the save")
+	card.queue_free()
+	await _frames(2)
+
+	# the skill tree writes ranks as they are spent
+	SkillTreeData.reset_to_default()
+	var save_tree = load("res://scenes/skill_tree.tscn").instantiate()
+	add_child(save_tree)
+	await _frames(2)
+	save_tree.open(player)
+	save_tree.spend("cleave")
+	var tree_written := ConfigFile.new()
+	tree_written.load(SaveGame.path)
+	var saved_ranks: Dictionary = tree_written.get_value("champion", "tree", {})
+	_check(int(saved_ranks.get("cleave", 0)) == 2, "spending a skill point writes the save")
+	save_tree.close()
+	save_tree.queue_free()
+	await _frames(2)
+
+	# baseline restored, scratch file removed
+	ClassKit.selected = "fighter"
+	Progression.reset()
+	SkillTreeData.reset_to_default()
+	SkillTreeData.apply_to(player)
+	AudioServer.set_bus_volume_db(0, 0.0)
+	SaveGame.erase()
+	_check(not FileAccess.file_exists(SaveGame.path), "the scratch save is cleaned up")
+
+	# ============ Phase 9: progression (XP, levels, rail unlock) ============
+	Progression.reset()
+	SkillTreeData.reset_to_default()
+	ClassKit.selected = "fighter"
+	_check(Progression.level == Progression.START_LEVEL and Progression.xp == 0,
+			"a fresh run starts at the concept's level 12")
+	_check(Progression.points_total() == 8,
+			"level 12 owns the concept's eight-point pool")
+	Progression.award_kill()
+	_check(Progression.xp == Progression.XP_PER_KILL, "a kill awards experience")
+	Progression.xp = Progression.XP_PER_LEVEL - 1
+	_check(Progression.award_kill() == 1, "a kill can complete a level")
+	_check(Progression.level == 13, "the champion levels up")
+	_check(Progression.points_total() == 9, "each level grants a skill point")
+	_check(SkillTreeData.points_available() == 3, "the extra point shows in the tree pool")
+
+	main.award_xp(Progression.XP_PER_LEVEL)
+	_check(Progression.level == 14, "the world banks experience through the kill path")
+	_check(hud.level_label.text == "Lv 14", "the HUD level readout follows the level")
+
+	var rail = load("res://scenes/skill_tree.tscn").instantiate()
+	add_child(rail)
+	await _frames(2)
+	rail.open(player)
+	_check(not rail.rail_unlocked, "the Secondary Archetype rail is locked below 25")
+	_check(rail.rail_lock.visible, "the rail shows its padlock below 25")
+	_check(rail.rail_hint.text.findn("Level 25") >= 0, "the rail names the level-25 gate")
+	_check(not rail.choose_secondary("mage"), "a locked rail refuses a secondary")
+	Progression.level = Progression.SECONDARY_LEVEL
+	rail._refresh()
+	_check(rail.rail_unlocked, "the rail unlocks at level 25")
+	_check(not rail.rail_lock.visible, "the padlock clears when it opens")
+	_check(rail.secondary_buttons.size() == 8, "the rail offers the eight secondaries")
+	_check(rail.choose_secondary("ranger"), "a secondary archetype can be chosen")
+	_check(Progression.secondary == "ranger", "the choice is remembered")
+	var rail_saved := ConfigFile.new()
+	rail_saved.load(SaveGame.path)
+	_check(str(rail_saved.get_value("champion", "secondary", "")) == "ranger",
+			"the secondary archetype is saved")
+	rail.close()
+	rail.queue_free()
+	await _frames(2)
+
+	Progression.reset()
+	SkillTreeData.reset_to_default()
+	SkillTreeData.apply_to(player)
+	hud.set_level(Progression.level)
+	SaveGame.erase()
+
+	# ============ Phase 10: the cleric companion ============
+	var cleric = main.companion
+	_check(cleric != null, "the town square stages the cleric")
+	_check(not cleric.recruited, "the cleric waits to be recruited")
+	_check(cleric.get_node("Nameplate").text.findn("ALLY") >= 0,
+			"the cleric's nameplate reads Ally")
+	_check(hud.party_names[1].text.findn("Maelis") >= 0,
+			"the party frame names the cleric")
+	# Recruit through the same E press a player uses, from inside the radius.
+	player.global_position = cleric.global_position + Vector3(1.0, 0.85, 1.0)
+	var recruit_key := InputEventKey.new()
+	recruit_key.keycode = KEY_E
+	recruit_key.pressed = true
+	cleric._unhandled_input(recruit_key)
+	_check(cleric.recruited and cleric.hp == cleric.max_hp, "the cleric can be recruited")
+	await _frames(2)
+	_check(absf(hud.party_bars[1].max_value - cleric.max_hp) < 0.01,
+			"the party frame reads the cleric's live health")
+
+	# she follows the champion
+	player.global_position = Vector3(0, 0.85, 20.0)
+	cleric.global_position = Vector3(0, 0.0, 9.4)
+	await _frames(4)
+	var gap_before: float = cleric.global_position.distance_to(player.global_position)
+	await _frames(40)
+	var gap_after: float = cleric.global_position.distance_to(player.global_position)
+	_check(gap_after < gap_before - 0.5, "the cleric follows the champion")
+
+	# and mends the party on a cooldown
+	player.hp = 40.0
+	cleric.heal_cd = 0.0
+	cleric.global_position = player.global_position + Vector3(1.5, 0.0, 1.5)
+	await _frames(4)
+	_check(player.hp > 40.0, "the cleric heals the wounded champion")
+	_check(cleric.heal_cd > 0.0, "the heal goes on cooldown")
+	player.hp = 40.0
+	await _frames(4)
+	_check(player.hp == 40.0, "the heal respects its cooldown")
+	cleric.heal_cd = 0.0
+	player.hp = player.max_hp
+	await _frames(4)
+	_check(absf(player.hp - player.max_hp) < 0.01 and cleric.heal_cd == 0.0,
+			"the cleric holds the heal at full health")
+
+	# downed, no healing, then back up
+	cleric.take_damage(999.0)
+	_check(cleric.is_downed and cleric.hp == 0.0, "the cleric can be downed")
+	await _frames(2)
+	_check(hud.party_bars[1].value == 0.0, "the party frame shows the downed cleric")
+	player.hp = 30.0
+	cleric.heal_cd = 0.0
+	await _frames(4)
+	_check(player.hp == 30.0, "a downed cleric cannot heal")
+	cleric.downed_timer = 0.05
+	await _frames(5)
+	_check(not cleric.is_downed and cleric.hp > 0.0, "the cleric revives after a while")
+	await _frames(2)
+	_check(hud.party_bars[1].value > 0.0, "the party frame comes back with the cleric")
+
+	player.hp = player.max_hp
+	cleric.heal_cd = 0.0
+	cleric.global_position = Vector3(2.4, 0.0, 9.4)
+	player.global_position = Vector3(0, 0.85, 8.0)
 
 	# --- report ---
 	if failures.is_empty():
