@@ -165,7 +165,7 @@ offset_right = 580.0
 offset_bottom = 195.0
 theme_override_colors/font_color = Color(0.85, 0.66, 0.2, 0.5)
 theme_override_font_sizes/font_size = 15
-text = "─────  ◆  ─────"
+text = "—————  •  —————"
 horizontal_alignment = 1
 
 [node name="Menu" type="VBoxContainer" parent="CenterPanel"]
@@ -245,7 +245,7 @@ offset_right = 760.0
 offset_bottom = 890.0
 theme_override_colors/font_color = Color(0.6, 0.62, 0.68, 0.9)
 theme_override_font_sizes/font_size = 12
-text = "↑ ↓  choose      Enter  confirm      Esc  quit"
+text = "Up/Down  choose      Enter  confirm      Esc  quit"
 
 [node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
