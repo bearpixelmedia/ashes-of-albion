@@ -68,6 +68,7 @@ var _attack_cd := 0.0
 var _stamina_delay := 0.0
 var _bow: Node3D = null
 var camera_enabled := true
+var _skip_attack_once := false  # the click that recaptures the mouse must not also swing
 var _respawn_timer := 0.0
 var _spawn_position := Vector3.ZERO
 var _hurt_tween: Tween = null
@@ -89,11 +90,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		spring_arm.rotation.x = clampf(
 			spring_arm.rotation.x - event.relative.y * mouse_sensitivity, -1.1, 0.5)
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		camera_enabled = not camera_enabled
 		if camera_enabled:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
+			# first Esc: release the mouse (camera look off)
+			camera_enabled = false
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		else:
+			# second Esc (mouse already up): walk back up the front-end flow
+			get_tree().change_scene_to_file("res://scenes/character_select.tscn")
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
+			and not camera_enabled and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
+		# clicking the open world recaptures the mouse (HUD clicks never reach here)
+		camera_enabled = true
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_skip_attack_once = true
 
 
 func _physics_process(delta: float) -> void:
@@ -159,7 +168,10 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 
 	if Input.is_action_just_pressed("attack"):
-		attack()
+		if _skip_attack_once:
+			_skip_attack_once = false
+		else:
+			attack()
 	if Input.is_action_just_pressed("hotbar_1"):
 		use_skill_1()
 	if Input.is_action_just_pressed("hotbar_2"):

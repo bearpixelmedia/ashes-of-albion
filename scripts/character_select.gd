@@ -40,6 +40,9 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_go_title()
+		return
 	if not (event is InputEventKey) or not event.pressed:
 		return
 	var key := event as InputEventKey
@@ -78,6 +81,14 @@ func select_class(index: int) -> void:
 func commit_selection() -> String:
 	ClassKit.selected = str(ClassKit.by_index(selected_index)["id"])
 	return ClassKit.selected
+
+
+## Back: return to the title screen without committing anything.
+func _go_title() -> void:
+	if _starting:
+		return
+	_starting = true
+	get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 
 
 ## Enter World: commit the pick, then load the world scene.
