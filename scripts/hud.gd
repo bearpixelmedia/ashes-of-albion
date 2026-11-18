@@ -21,6 +21,9 @@ var player = null  # the player scene root; untyped so hp/stamina/lock fields re
 @onready var results_panel: Control = %ResultsPanel
 @onready var results_title: Label = %ResultsTitle
 @onready var results_body: Label = %ResultsBody
+@onready var town_hall_prompt: Control = %TownHallPrompt
+@onready var mandate_label: Label = %MandateLabel
+@onready var crown_label: Label = %CrownLabel
 
 # Hotbar slots: key caption, skill name and the panel that dims on cooldown.
 var slot_keys: Array = []
@@ -78,6 +81,21 @@ func set_score(kills: int, deaths: int) -> void:
 
 func set_zone(zone_text: String) -> void:
 	zone_label.text = zone_text
+
+
+func show_town_hall_prompt(shown: bool) -> void:
+	town_hall_prompt.visible = shown
+
+
+func set_mandate(text: String) -> void:
+	## The mayor's mandate line under the scoreboard; hidden while none is sealed.
+	mandate_label.visible = text != ""
+	mandate_label.text = text
+
+
+func set_crowns(count: int) -> void:
+	crown_label.visible = count > 0
+	crown_label.text = "Crowns %d" % count
 
 
 func set_wave(wave: int, max_wave: int) -> void:

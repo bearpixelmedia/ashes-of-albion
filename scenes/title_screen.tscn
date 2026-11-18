@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/title_screen.gd" id="1"]
 [ext_resource type="Material" path="res://materials/cobble.tres" id="2"]
@@ -12,42 +12,6 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.85, 0.66, 0.2, 0.55)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="btn_gold"]
-bg_color = Color(0.82, 0.6, 0.16, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.85, 0.45, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="btn_dark"]
-bg_color = Color(0.08, 0.085, 0.12, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.85, 0.66, 0.2, 0.45)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="btn_hover"]
-bg_color = Color(0.12, 0.12, 0.17, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.82, 0.35, 0.8)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
@@ -172,10 +136,10 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 110.0
-offset_top = 240.0
+offset_top = 208.0
 offset_right = 490.0
 offset_bottom = 540.0
-theme_override_constants/separation = 16
+theme_override_constants/separation = 8
 
 [node name="EnterWorld" type="Button" parent="CenterPanel/Menu"]
 unique_name_in_owner = true
@@ -184,9 +148,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.12, 0.08, 0.03, 1)
 theme_override_font_sizes/font_size = 20
 text = "Enter World"
-theme_override_styles/normal = SubResource("btn_gold")
-theme_override_styles/hover = SubResource("btn_gold")
-theme_override_styles/pressed = SubResource("btn_gold")
 
 [node name="CharacterSelect" type="Button" parent="CenterPanel/Menu"]
 unique_name_in_owner = true
@@ -195,10 +156,14 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.88, 0.8, 1)
 theme_override_font_sizes/font_size = 18
 text = "Character Select"
-theme_override_styles/normal = SubResource("btn_dark")
-theme_override_styles/hover = SubResource("btn_hover")
-theme_override_styles/pressed = SubResource("btn_dark")
-theme_override_styles/focus = SubResource("btn_hover")
+
+[node name="TownHall" type="Button" parent="CenterPanel/Menu"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 58)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.88, 0.8, 1)
+theme_override_font_sizes/font_size = 18
+text = "Town Hall"
 
 [node name="Settings" type="Button" parent="CenterPanel/Menu"]
 unique_name_in_owner = true
@@ -207,10 +172,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.88, 0.8, 1)
 theme_override_font_sizes/font_size = 18
 text = "Settings"
-theme_override_styles/normal = SubResource("btn_dark")
-theme_override_styles/hover = SubResource("btn_hover")
-theme_override_styles/pressed = SubResource("btn_dark")
-theme_override_styles/focus = SubResource("btn_hover")
 
 [node name="Exit" type="Button" parent="CenterPanel/Menu"]
 unique_name_in_owner = true
@@ -219,10 +180,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.88, 0.8, 1)
 theme_override_font_sizes/font_size = 18
 text = "Exit"
-theme_override_styles/normal = SubResource("btn_dark")
-theme_override_styles/hover = SubResource("btn_hover")
-theme_override_styles/pressed = SubResource("btn_dark")
-theme_override_styles/focus = SubResource("btn_hover")
 
 [node name="StatusLabel" type="Label" parent="CenterPanel"]
 unique_name_in_owner = true
@@ -260,5 +217,6 @@ horizontal_alignment = 2
 
 [connection signal="pressed" from="CenterPanel/Menu/EnterWorld" to="." method="_on_enter_world"]
 [connection signal="pressed" from="CenterPanel/Menu/CharacterSelect" to="." method="_on_character_select"]
+[connection signal="pressed" from="CenterPanel/Menu/TownHall" to="." method="_on_town_hall"]
 [connection signal="pressed" from="CenterPanel/Menu/Settings" to="." method="_on_settings"]
 [connection signal="pressed" from="CenterPanel/Menu/Exit" to="." method="_on_exit"]

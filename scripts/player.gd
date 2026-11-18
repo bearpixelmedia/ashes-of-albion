@@ -63,12 +63,11 @@ var dash_time := 0.0
 var dash_dir := Vector3.ZERO
 var evade_time := 0.0
 var is_dead := false
+var home_position := Vector3.ZERO  # Ashford's hall once the player is a citizen
 
 var _attack_cd := 0.0
 var _stamina_delay := 0.0
 var _bow: Node3D = null
-var camera_enabled := true
-var _skip_attack_once := false  # the click that recaptures the mouse must not also swing
 var _respawn_timer := 0.0
 var _spawn_position := Vector3.ZERO
 var _hurt_tween: Tween = null
@@ -81,28 +80,15 @@ func _ready() -> void:
 	poise = max_poise
 	add_to_group("player")
 	_spawn_position = global_position
+	home_position = _spawn_position
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and camera_enabled:
+	if event is InputEventMouseMotion:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		spring_arm.rotation.x = clampf(
 			spring_arm.rotation.x - event.relative.y * mouse_sensitivity, -1.1, 0.5)
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		if camera_enabled:
-			# first Esc: release the mouse (camera look off)
-			camera_enabled = false
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			# second Esc (mouse already up): walk back up the front-end flow
-			get_tree().change_scene_to_file("res://scenes/character_select.tscn")
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
-			and not camera_enabled and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-		# clicking the open world recaptures the mouse (HUD clicks never reach here)
-		camera_enabled = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		_skip_attack_once = true
 
 
 func _physics_process(delta: float) -> void:
@@ -168,10 +154,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 
 	if Input.is_action_just_pressed("attack"):
-		if _skip_attack_once:
-			_skip_attack_once = false
-		else:
-			attack()
+		attack()
 	if Input.is_action_just_pressed("hotbar_1"):
 		use_skill_1()
 	if Input.is_action_just_pressed("hotbar_2"):
@@ -244,6 +227,13 @@ func respawn() -> void:
 	damaged.emit(hp, max_hp, poise)
 
 
+## Ashford citizenship moves the respawn point to the hall; renouncing puts it
+## back. main applies this from the Town Hall's citizenship_changed signal.
+func set_home(position: Vector3) -> void:
+	home_position = position
+	_spawn_position = position
+
+
 func _flash_hurt() -> void:
 	if _hurt_tween != null and _hurt_tween.is_valid():
 		_hurt_tween.kill()
@@ -288,7 +278,7 @@ func use_skill_1() -> void:
 			return
 		stamina -= power_shot_stamina_cost
 		_stamina_delay = 1.2
-		skill1_cd = power_shot_cooldown
+		skill1_cd = power_shot_cooldown * MandateKit.cooldown_scale()
 		_swing_weapon(false)
 		_shoot(power_shot_damage, power_shot_poise)
 		return
@@ -296,7 +286,7 @@ func use_skill_1() -> void:
 		return
 	stamina -= cleave_stamina_cost
 	_stamina_delay = 1.2
-	skill1_cd = cleave_cooldown
+	skill1_cd = cleave_cooldown * MandateKit.cooldown_scale()
 	_swing_weapon(true)
 	for target in _arc_targets(cleave_range, cleave_min_dot):
 		# Pass the strike origin so shields can tell front hits from back hits.
@@ -312,7 +302,7 @@ func use_skill_2() -> void:
 	if is_dead or stagger_time > 0.0 or skill2_cd > 0.0:
 		return
 	if ClassKit.is_ranged(class_id):
-		skill2_cd = tumble_cooldown
+		skill2_cd = tumble_cooldown * MandateKit.cooldown_scale()
 		var facing := -global_transform.basis.z
 		facing.y = 0.0
 		dash_dir = facing.normalized()
@@ -323,7 +313,7 @@ func use_skill_2() -> void:
 		return
 	if hp >= max_hp:
 		return
-	skill2_cd = wind_cooldown
+	skill2_cd = wind_cooldown * MandateKit.cooldown_scale()
 	var healed := minf(wind_heal, max_hp - hp)
 	hp += healed
 	stamina = minf(stamina + wind_stamina, max_stamina)

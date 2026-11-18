@@ -15,7 +15,18 @@ var _starting := false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_style_buttons()
 	%EnterWorld.grab_focus()
+
+
+## The gold primary and dark secondaries come from the shared UiStyle helper.
+func _style_buttons() -> void:
+	var gold := UiStyle.gold()
+	var dark := UiStyle.dark()
+	var hover := UiStyle.dark_hover()
+	UiStyle.paint(%EnterWorld, gold, gold, gold)
+	for button in [%CharacterSelect, %TownHall, %Settings, %Exit]:
+		UiStyle.paint(button, dark, hover, dark, hover)
 
 
 func _process(delta: float) -> void:
@@ -43,6 +54,14 @@ func open_character_select() -> void:
 	get_tree().change_scene_to_file("res://scenes/character_select.tscn")
 
 
+## Town Hall: the citizenship and mayoral-ballot panel.
+func open_town_hall() -> void:
+	if _starting:
+		return
+	_starting = true
+	get_tree().change_scene_to_file("res://scenes/town_hall.tscn")
+
+
 ## Settings stub — the real screen lands in Phase 6.
 func show_settings() -> void:
 	status_label.text = "Settings arrive in Phase 6 — audio, keybinds and camera."
@@ -55,6 +74,10 @@ func _on_enter_world() -> void:
 
 func _on_character_select() -> void:
 	open_character_select()
+
+
+func _on_town_hall() -> void:
+	open_town_hall()
 
 
 func _on_settings() -> void:

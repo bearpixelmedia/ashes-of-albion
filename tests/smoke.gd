@@ -36,7 +36,22 @@ func _frames(n: int) -> void:
 		await get_tree().physics_frame
 
 
+## A real Esc key event, so the overlay's ui_cancel handling is what answers it.
+func _send_escape() -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = KEY_ESCAPE
+		event.physical_keycode = KEY_ESCAPE
+		event.pressed = pressed
+		Input.parse_input_event(event)
+
+
 func _run() -> void:
+	TownHallSave.path = "user://smoke_town_hall.json"  # never touch the player's saves
+	ElectionKit.path = "user://smoke_election.json"
+	TownHallSave.reset()
+	ElectionKit.reset()
+	MandateKit.clear()  # the sealed mandate is static: every run starts without a mayor
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	await _frames(6)
@@ -654,10 +669,10 @@ func _run() -> void:
 	_check(title_label != null and title_label.text == "ASHES OF ALBION",
 			"the title screen carries the game title")
 	var title_menu = title.get_node_or_null("CenterPanel/Menu")
-	_check(title_menu != null and title_menu.get_child_count() == 4,
-			"the menu offers Enter World, Character Select, Settings and Exit")
+	_check(title_menu != null and title_menu.get_child_count() == 5,
+			"the menu offers Enter World, Character Select, Town Hall, Settings and Exit")
 	var menu_wired := true
-	for menu_name in ["EnterWorld", "CharacterSelect", "Settings", "Exit"]:
+	for menu_name in ["EnterWorld", "CharacterSelect", "TownHall", "Settings", "Exit"]:
 		var btn = title.get_node("CenterPanel/Menu/" + menu_name)
 		var connections: Array = btn.pressed.get_connections()
 		var found := false
@@ -692,6 +707,465 @@ func _run() -> void:
 	_check(back_wired, "Back is wired to return to the title screen")
 	select2.queue_free()
 	await _frames(2)
+
+	# ============ Phase 5 front end: Town Hall (citizenship + election) ============
+
+	ElectionKit.reset()  # the hall opens on a fresh 24 h ballot
+	var hall = load("res://scenes/town_hall.tscn").instantiate()
+	add_child(hall)
+	await _frames(4)
+	_check(hall.get_node("LeftPanel/Title").text == "Citizenship",
+			"the town hall carries the Citizenship panel")
+	_check(hall.get_node("RightPanel/Title").text == "Mayoral Ballot",
+			"the town hall carries the Mayoral Ballot")
+	_check(hall.citizenship_tab.text == "Citizenship" and hall.election_tab.text == "Election",
+			"the tabs label the two halves of the hall")
+	_check(hall.active_tab == 1, "the hall opens on the Election tab")
+	hall.focus_panel(0)
+	_check(hall.active_tab == 0, "the Citizenship tab raises its panel")
+	hall.focus_panel(1)
+	_check(hall.rows.size() == 4, "the ballot lists four candidates")
+	var ballot_names: Array = []
+	var ballot_roles: Array = []
+	var ballot_glyphs := true
+	for i in hall.rows.size():
+		ballot_names.append(hall.rows[i].get_node("CandidateName").text)
+		ballot_roles.append(hall.rows[i].get_node("RoleChip/RoleLabel").text)
+		if hall.rows[i].get_node_or_null("CandidateGlyph") == null:
+			ballot_glyphs = false
+	_check(ballot_names == ["Aveline", "Merrin", "Garrick", "Ilyra"],
+			"the ballot names Aveline, Merrin, Garrick and Ilyra")
+	_check(ballot_roles == ["DIVINE", "ECONOMIC", "MILITARY", "SCIENTIFIC"],
+			"each candidate carries their mandate")
+	_check(ballot_glyphs, "every candidate row carries a mandate glyph")
+	_check(hall.timer_label.text == "24:00:00", "the ballot clock starts at 24:00:00")
+	_check(hall.format_clock(3661.0) == "01:01:01",
+			"the ballot clock formats hours, minutes and seconds")
+	_check(hall.selected_candidate == -1, "the ballot opens with no candidate picked")
+	hall.select_candidate(0)
+	_check(hall.selected_candidate == 0 and hall.right_status.text.findn("Aveline") >= 0,
+			"picking a candidate fills the ballot")
+	hall.select_candidate(3)
+	_check(hall.selected_candidate == 3, "the ballot follows a second pick")
+	_check(not hall.housing_check.button_pressed and hall.housing_check.disabled,
+			"a visitor cannot register a house in the ZOI")
+	_check(hall.claim_button.text == "Claim citizenship" and not hall.claim_button.disabled,
+			"a visitor can claim citizenship")
+	_check(hall.cooldown_value.text == "14d 00h", "the renounce cooldown reads 14d 00h")
+	hall.claim_citizenship()
+	_check(hall.is_citizen and hall.claim_button.disabled,
+			"claiming citizenship is one per server")
+	_check(hall.housing_check.button_pressed and TownHallSave.housing,
+			"claiming registers the ZOI house")
+	_check(not hall.renounce_button.disabled, "a citizen can renounce")
+	_check(hall.left_status.text.findn("citizen of Ashford") >= 0,
+			"the citizenship panel confirms the claim")
+	hall.claim_citizenship()
+	_check(hall.is_citizen, "citizenship cannot be claimed twice")
+	_check(hall.mandate_buttons.size() == 3, "the mayor's mandate offers three actions")
+	hall.mandate_buttons[1].pressed.emit()
+	await _frames(2)
+	_check(hall.right_status.text.findn("Adjust taxes") >= 0,
+			"a mandate action reports to the ballot")
+	_check(not hall.get_node("BackButton").pressed.get_connections().is_empty(),
+			"Back is wired to return to the title screen")
+	hall.queue_free()
+	await _frames(2)
+
+	# --- the world's Town Hall door opens the same panel (and returns) ---
+	player.hp = player.max_hp
+	player.is_dead = false
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(0, 0.85, 14.6)
+	await _frames(5)
+	_check(main.near_town_hall(), "the southern building is the Town Hall door")
+	_check(hud.town_hall_prompt.visible, "the HUD prompts at the town-hall door")
+	Input.action_press("interact")
+	await _frames(2)
+	Input.action_release("interact")
+	await _frames(3)
+	_check(main.town_hall != null, "E opens the Town Hall inside the world")
+	_check(not player.can_process(), "the world pauses while the hall is open")
+	_check(not hud.town_hall_prompt.visible, "the open hall hides the door prompt")
+	var world_hall = main.town_hall
+	world_hall.claim_citizenship()
+	_check(world_hall.is_citizen, "the in-world hall is live")
+	var kills_before: int = main.kills
+	world_hall.go_title()
+	await _frames(3)
+	_check(main.town_hall == null, "Back closes the hall back into the world")
+	_check(player.can_process(), "the world resumes after the visit")
+	_check(main.kills == kills_before, "the run state survives the visit")
+	_check(hud.town_hall_prompt.visible, "the door prompt returns after the visit")
+
+	# ============ Phase 5: the election lifecycle ============
+
+	ElectionKit.reset()
+	MandateKit.clear()
+	main.apply_mandate()
+
+	_check(ElectionKit.phase == ElectionKit.OPEN and ElectionKit.cycle == 1,
+			"a fresh session opens election I")
+	_check(ElectionKit.remaining() > ElectionKit.BALLOT_SECONDS - 120.0,
+			"the first ballot opens on a 24 h clock")
+	_check(ElectionKit.incumbent == -1 and ElectionKit.vote == -1,
+			"the first election has no incumbent and no cast ballot")
+	_check(not hud.mandate_label.visible,
+			"the HUD hides the mandate line before a mayor exists")
+
+	# --- cast ballot and the lockout after voting ---
+	_check(ElectionKit.cast_vote(1), "a citizen can cast one ballot")
+	_check(ElectionKit.votes[1] == int(ElectionKit.OPENING_TALLIES[1]) + 1,
+			"the cast ballot joins the tally")
+	_check(ElectionKit.vote == 1 and not ElectionKit.cast_vote(0),
+			"a second ballot in the same election is refused")
+	_check(not ElectionKit.maybe_resolve(), "the count waits for the clock")
+
+	# --- countdown expiry, tally and results ---
+	ElectionKit.votes[2] = 9
+	ElectionKit.ballot_end = ElectionKit.now() - 1.0
+	_check(ElectionKit.maybe_resolve(), "the expired clock opens the count")
+	_check(ElectionKit.phase == ElectionKit.RESULTS
+			and int(ElectionKit.result["winner"]) == 2,
+			"the tally elects the candidate with the most votes")
+	_check(ElectionKit.incumbent == 2 and MandateKit.role == "Military",
+			"the winner becomes the incumbent and seals their mandate")
+	_check(not ElectionKit.maybe_resolve(), "a counted ballot does not count twice")
+
+	# --- the count survives a relaunch (saved to user://) ---
+	ElectionKit.reload_from_disk()
+	_check(ElectionKit.phase == ElectionKit.RESULTS and ElectionKit.incumbent == 2
+			and ElectionKit.vote == 1,
+			"the count, the incumbent and the lockout survive a relaunch")
+	_check(MandateKit.role == "Military", "a relaunch restores the sealed mandate")
+
+	# --- rollover: the next cycle opens with the incumbent ---
+	ElectionKit.begin_cycle()
+	_check(ElectionKit.cycle == 2 and ElectionKit.phase == ElectionKit.OPEN,
+			"the next election opens after the count")
+	_check(ElectionKit.vote == -1 and ElectionKit.remaining() > 86000.0,
+			"the new cycle clears the lockout and restarts the clock")
+	_check(ElectionKit.votes[2] == int(ElectionKit.OPENING_TALLIES[2]) + 1,
+			"the incumbent opens the next race one vote ahead")
+
+	# --- ties ---
+	ElectionKit.votes[0] = 5
+	ElectionKit.votes[1] = 5
+	ElectionKit.votes[2] = 5
+	ElectionKit.votes[3] = 5
+	var tie: Dictionary = ElectionKit.resolve()
+	_check(bool(tie["tied"]) and int(tie["winner"]) == -1,
+			"a level tally resolves as a tie")
+	_check(tie["leaders"] == [0, 1, 2, 3],
+			"the tie names every candidate level at the top")
+	_check(ElectionKit.incumbent == 2, "a tie leaves the incumbent in office")
+	_check(MandateKit.mayor == "Garrick", "a tie seals no new mandate")
+	ElectionKit.begin_cycle()
+	_check(ElectionKit.cycle == 3 and ElectionKit.incumbent == 2,
+			"a tied election still rolls into the next cycle")
+
+	# --- the hall's cast ballot, lockout and results ---
+	ElectionKit.reset()
+	MandateKit.clear()
+	main.apply_mandate()
+	var election_hall = load("res://scenes/town_hall.tscn").instantiate()
+	add_child(election_hall)
+	await _frames(3)
+	_check(election_hall.cast_button.text == "Cast ballot" and election_hall.cast_button.disabled,
+			"the hall arms its cast button only after a pick")
+	_check(election_hall.incumbent_label.text.findn("No incumbent") >= 0,
+			"the hall names the empty seat before the first count")
+	_check(not election_hall.results_panel.visible,
+			"the results stay hidden while the ballot is open")
+	election_hall.select_candidate(2)  # Garrick
+	_check(not election_hall.cast_button.disabled, "picking a candidate arms cast ballot")
+	election_hall.cast_ballot()
+	_check(ElectionKit.vote == 2 and election_hall.cast_button.disabled,
+			"casting locks the cast button")
+	_check(election_hall.rows[0].disabled and election_hall.rows[3].disabled,
+			"casting locks every ballot row")
+	_check(election_hall.right_status.text.findn("one vote per election") >= 0,
+			"the hall confirms the cast ballot")
+	election_hall.select_candidate(0)
+	_check(election_hall.selected_candidate == 2 and ElectionKit.vote == 2,
+			"a cast ballot cannot be changed")
+	_check(not election_hall.cast_ballot(), "a second cast is refused")
+	ElectionKit.ballot_end = ElectionKit.now() - 1.0
+	await _frames(3)
+	_check(election_hall.results_panel.visible, "the expired clock shows the results panel")
+	_check(election_hall.results_title.text.findn("Aveline") >= 0,
+			"the results name the elected mayor")
+	_check(election_hall.results_panel.get_node("TallyList").get_child_count() == 4,
+			"the results list every candidate's tally")
+	_check(election_hall.results_panel.get_node("TallyList").get_child(0).get_child(2)
+			.text.findn("4") >= 0,
+			"the winning tally reads its vote count")
+	_check(election_hall.results_footer.text.findn("Divine") >= 0,
+			"the results report the sealed mandate")
+	_check(election_hall.incumbent_label.text.findn("Aveline") >= 0,
+			"the hall names the incumbent after the count")
+	_check(election_hall.timer_label.text == "00:00:00", "the counted clock reads 00:00:00")
+	main.apply_mandate()
+	_check(hud.mandate_label.text.findn("Aveline") >= 0,
+			"the world HUD follows the counted ballot")
+	election_hall.next_button.pressed.emit()
+	await _frames(2)
+	_check(ElectionKit.cycle == 2 and ElectionKit.phase == ElectionKit.OPEN,
+			"the next election button opens the next cycle")
+	_check(not election_hall.results_panel.visible and not election_hall.rows[0].disabled,
+			"the new cycle clears the results and unlocks the rows")
+	_check(election_hall.cast_button.text == "Cast ballot" and election_hall.cast_button.disabled,
+			"the new cycle waits for a fresh pick")
+	_check(election_hall.timer_label.text == "24:00:00",
+			"the new cycle restores the 24 h clock")
+	_check(election_hall.incumbent_label.text.findn("Aveline") >= 0,
+			"the incumbent carries into the next election")
+	for i in ElectionKit.CANDIDATES.size():
+		ElectionKit.votes[i] = 5
+	election_hall.close_ballot()
+	await _frames(2)
+	_check(election_hall.results_title.text.findn("tied") >= 0,
+			"a level count reports a tied ballot")
+	_check(ElectionKit.incumbent == 0 and MandateKit.role == "Divine",
+			"a tie leaves the incumbent and her mandate in place")
+	_check(election_hall.results_footer.text.findn("Aveline") >= 0,
+			"the results explain who keeps the seat")
+	election_hall.queue_free()
+	await _frames(2)
+
+	# --- the in-world hall counts its ballot and keeps the lockout ---
+	ElectionKit.reset()
+	MandateKit.clear()
+	main.apply_mandate()
+	player.hp = player.max_hp
+	player.is_dead = false
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(0, 0.85, 14.6)
+	await _frames(5)
+	Input.action_press("interact")
+	await _frames(2)
+	Input.action_release("interact")
+	await _frames(3)
+	_check(main.town_hall != null, "the hall reopens over the world after the last visit")
+	var live_hall = main.town_hall
+	_check(live_hall.cast_button.disabled, "the in-world ballot waits for a pick")
+	ElectionKit.votes[1] = 8
+	live_hall.select_candidate(1)  # Merrin — Economic
+	live_hall.cast_ballot()
+	live_hall.close_ballot()
+	await _frames(2)
+	_check(MandateKit.role == "Economic" and hud.mandate_label.text.findn("Economic") >= 0,
+			"the in-world count hands the mandate to the HUD live")
+	live_hall.go_title()
+	await _frames(3)
+	_check(main.town_hall == null, "the counted hall still closes back into the world")
+	Input.action_press("interact")
+	await _frames(2)
+	Input.action_release("interact")
+	await _frames(3)
+	_check(main.town_hall != null and main.town_hall.results_panel.visible,
+			"reopening the hall restores the counted results")
+	_check(main.town_hall.cast_button.text == "Ballot cast",
+			"the counted ballot stays locked on reopen")
+	main.town_hall.start_next_cycle()
+	_check(ElectionKit.cycle == 2, "the in-world hall opens the next cycle")
+	main.town_hall.go_title()
+	await _frames(3)
+
+	# --- the sealed mandates still shape the world ---
+	ElectionKit.begin_cycle()
+	ElectionKit.votes[1] = 9
+	ElectionKit.resolve()
+	main.apply_mandate()
+	_check(MandateKit.crowns_per_kill(10) == 30, "the Economic mandate triples the kill reward")
+	dummy.reset()
+	var crowns0: int = main.crowns
+	dummy.take_damage(99999.0)
+	await _frames(4)
+	_check(main.crowns == crowns0 + 30, "a defeat pays the mandated crowns")
+	_check(hud.crown_label.visible and hud.crown_label.text.findn(str(main.crowns)) >= 0,
+			"the HUD shows the crown purse")
+	dummy.reset()
+
+	ElectionKit.begin_cycle()
+	ElectionKit.votes[0] = 9
+	ElectionKit.resolve()
+	main.apply_mandate()
+	_check(MandateKit.heal_per_second() > 0.0, "the Divine mandate mends the faithful")
+	_check(hud.mandate_label.text.findn("Aveline") >= 0, "the HUD names Aveline's mandate")
+	player.is_dead = false
+	player.stagger_time = 0.0
+	player.hp = 40.0
+	await _frames(30)
+	_check(player.hp > 40.0, "the Divine mandate heals the player over time")
+
+	ElectionKit.begin_cycle()
+	ElectionKit.votes[3] = 9
+	ElectionKit.resolve()
+	main.apply_mandate()
+	_check(MandateKit.cooldown_scale() < 1.0, "the Scientific mandate shortens cooldowns")
+	player.is_dead = false
+	player.stagger_time = 0.0
+	player.hp = player.max_hp
+	player.stamina = 100.0
+	player.skill1_cd = 0.0
+	player.use_skill_1()
+	_check(absf(player.skill1_cd - 6.0 * MandateKit.cooldown_scale()) < 0.01,
+			"Cleave's cooldown follows the Scientific mandate")
+	_check(hud.mandate_label.text.findn("Scientific") >= 0,
+			"the HUD follows the newest counted ballot")
+
+	# --- a world entered after the vote boots under the mandate ---
+	var world3 = load("res://scenes/main.tscn").instantiate()
+	add_child(world3)
+	await _frames(5)
+	_check(world3.hud.mandate_label.visible
+			and world3.hud.mandate_label.text.findn("Ilyra") >= 0,
+			"a freshly entered world boots under the sealed mandate")
+	world3.queue_free()
+	await _frames(3)
+
+	# --- resetting the election restores the plain loop ---
+	ElectionKit.reset()
+	MandateKit.clear()
+	main.apply_mandate()
+	_check(not hud.mandate_label.visible and main._composition(2).size() == 2
+			and main._composition(3).size() == 3,
+			"resetting the election restores the plain waves and HUD")
+
+	# ============ Phase 5: citizenship drives the ballot and the world ============
+
+	TownHallSave.reset()
+	ElectionKit.reset()
+	MandateKit.clear()
+	main.apply_citizenship_perks()
+	main.apply_mandate()
+	_check(not TownHallSave.citizen and not TownHallSave.housing,
+			"a fresh citizen sheet has no claim and no ZOI house")
+	_check(player.home_position == main.birth_home,
+			"a visitor respawns at the birth spawn")
+
+	player.hp = player.max_hp
+	player.is_dead = false
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(0, 0.85, 14.6)
+	await _frames(5)
+	Input.action_press("interact")
+	await _frames(2)
+	Input.action_release("interact")
+	await _frames(3)
+	_check(main.town_hall != null, "the hall opens for the citizenship checks")
+	var civic = main.town_hall
+	_check(civic.housing_check.disabled and not civic.housing_check.button_pressed,
+			"housing in the ZOI waits for citizenship")
+	_check(civic.renounce_button.disabled, "a visitor has nothing to renounce")
+	civic.select_candidate(1)
+	_check(civic.cast_button.disabled, "a non-citizen cannot arm the ballot")
+	_check(not civic.cast_ballot(), "a non-citizen cannot vote")
+	_check(ElectionKit.vote == -1 and civic.right_status.text.findn("citizen") >= 0,
+			"the ballot explains the citizenship requirement")
+
+	civic.claim_citizenship()
+	_check(civic.is_citizen and TownHallSave.citizen,
+			"claiming citizenship is written to the citizen sheet")
+	_check(civic.housing_check.button_pressed and TownHallSave.housing,
+			"claiming registers the ZOI house")
+	_check(civic.left_status.text.findn("ZOI house") >= 0,
+			"the panel reports the house registration")
+	_check(player.home_position == main.ASHFORD_HOME,
+			"claiming sets Ashford as home and respawn")
+	_check(not civic.renounce_button.disabled, "a citizen can renounce")
+	civic.select_candidate(1)
+	_check(not civic.cast_button.disabled, "citizenship unlocks the ballot")
+	_check(civic.cast_ballot(), "a citizen can cast a ballot")
+	civic.housing_check.set_pressed_no_signal(false)
+	civic._on_housing_toggled(false)
+	_check(not TownHallSave.housing, "unchecking housing unregisters the ZOI house")
+
+	civic.renounce_citizenship()
+	_check(not civic.is_citizen and not TownHallSave.citizen,
+			"renouncing removes the citizenship")
+	_check(not TownHallSave.housing and not civic.housing_check.button_pressed
+			and civic.housing_check.disabled,
+			"renouncing takes the ZOI house with it")
+	_check(player.home_position == main.birth_home,
+			"renouncing hands the birth respawn back")
+	_check(TownHallSave.cooldown_left() > 0.0, "renouncing starts the 14-day cooldown")
+	_check(civic.claim_button.disabled and civic.claim_button.text.findn("Claim in") >= 0,
+			"the claim waits out the cooldown")
+	_check(not civic.claim_citizenship() and not TownHallSave.citizen,
+			"the cooldown refuses an early re-claim")
+
+	# --- the 14-day cooldown runs out: Ashford can be claimed again ---
+	TownHallSave.renounce_end = TownHallSave.now() - 1.0
+	await _frames(2)
+	_check(not civic.claim_button.disabled, "the claim unlocks when the cooldown ends")
+	_check(civic.claim_citizenship(), "a former citizen can claim Ashford again")
+	_check(TownHallSave.housing and player.home_position == main.ASHFORD_HOME,
+			"re-claiming restores the house and the hall respawn")
+
+	# --- a citizen's respawn point is Ashford's hall ---
+	player.global_position = Vector3(0, 0.85, -30.0)
+	player.respawn()
+	_check(player.global_position.distance_to(main.ASHFORD_HOME) < 0.5,
+			"a citizen respawns at Ashford's hall")
+
+	civic.go_title()
+	await _frames(2)
+
+	# ============ Phase 5: the in-world pause menu ============
+
+	_check(main.overlay == null, "the world runs without an overlay")
+	_send_escape()
+	await _frames(2)
+	_check(main.overlay is PauseMenu, "Esc opens the pause menu")
+	_check(main.town_hall == null, "the pause menu is not the Town Hall")
+	_check(not player.can_process(), "the pause menu freezes the world")
+	_check(get_tree().paused, "the pause menu pauses the whole tree")
+	var pause = main.overlay
+	main.open_pause_menu()
+	_check(main.overlay == pause, "a second open keeps the one overlay")
+	_check(pause.resume_button.text == "Resume" and pause.settings_button.text == "Settings"
+			and pause.return_button.text == "Return to Title",
+			"the menu offers Resume, Settings and Return to Title")
+	_check(not pause.return_button.pressed.get_connections().is_empty()
+			and not pause.title_requested.get_connections().is_empty(),
+			"Return to Title is wired to the world")
+	pause.settings_button.pressed.emit()
+	_check(pause.status_label.text.findn("Phase 6") >= 0,
+			"Settings reports the Phase 6 stub")
+	_check(main.overlay == pause, "Settings stays inside the pause menu")
+	pause.resume_button.pressed.emit()
+	await _frames(2)
+	_check(main.overlay == null and player.can_process() and not get_tree().paused,
+			"Resume hands the world back")
+	player.global_position = Vector3(0, 0.85, 0.0)  # open ground for the movement check
+	await _frames(2)
+	var resumed_from: Vector3 = player.global_position
+	Input.action_press("move_forward")
+	await _frames(4)
+	Input.action_release("move_forward")
+	_check(player.global_position.distance_to(resumed_from) > 0.02,
+			"Resume gives the player movement back")
+
+	# --- Esc is also the way out of the menu ---
+	main.open_pause_menu()
+	_send_escape()
+	await _frames(2)
+	_check(main.overlay == null and not get_tree().paused, "Esc resumes from the pause menu")
+
+	# --- the Town Hall goes through the same handoff ---
+	main.open_town_hall()
+	_check(main.overlay is TownHallPanel and main.town_hall == main.overlay,
+			"the Town Hall uses the shared overlay handoff")
+	_check(not player.can_process(), "the Town Hall freezes through the shared handoff")
+	main.open_pause_menu()
+	_check(main.town_hall != null and not (main.overlay is PauseMenu),
+			"a second overlay cannot open over the hall")
+	main.town_hall.go_title()
+	await _frames(2)
+	_check(main.overlay == null and main.town_hall == null and player.can_process(),
+			"closing the hall takes the shared resume path")
 
 	# --- report ---
 	if failures.is_empty():

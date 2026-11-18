@@ -32,6 +32,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_styles()
 	_build_rows()
+	_style_buttons()
 	var resume := ClassKit.index_of(ClassKit.selected)
 	if resume >= 0:
 		selected_index = resume
@@ -106,6 +107,21 @@ func _build_styles() -> void:
 	_style_base = _style(Color(0.07, 0.075, 0.11, 0.95), Color(0.5, 0.42, 0.22, 0.5), 1)
 	_style_hover = _style(Color(0.1, 0.1, 0.15, 0.98), GOLD, 1)
 	_style_selected = _style(Color(0.14, 0.1, 0.05, 0.98), GOLD_BRIGHT, 2)
+
+
+## The action bar uses the shared gold/dark boxes; Back hovers on the scene's
+## selected-card gold, as in the concept.
+func _style_buttons() -> void:
+	var gold := UiStyle.gold()
+	var dark := UiStyle.dark()
+	UiStyle.paint(enter_button, gold, gold, gold)
+	enter_button.add_theme_stylebox_override("disabled", dark)
+	var back: Button = $Back
+	back.add_theme_stylebox_override("normal", dark)
+	for node_name in ["CreateNew", "Delete"]:
+		var button: Button = get_node(node_name)
+		button.add_theme_stylebox_override("normal", dark)
+		button.add_theme_stylebox_override("disabled", dark)
 
 
 func _style(bg: Color, border: Color, width: int) -> StyleBoxFlat:

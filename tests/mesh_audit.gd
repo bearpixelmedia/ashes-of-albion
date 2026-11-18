@@ -1,5 +1,5 @@
 extends SceneTree
-## Audits the title, main and character-select scenes for
+## Audits the title, main, character-select and town-hall scenes for
 ## MeshInstance3D nodes with a null mesh (source of headless "Parameter m is
 ## null" warnings).
 ## Run: godot --headless --path . --script res://tests/mesh_audit.gd
@@ -12,6 +12,7 @@ func _initialize() -> void:
 	scenes.append(load("res://scenes/title_screen.tscn").instantiate())
 	scenes.append(load("res://scenes/main.tscn").instantiate())
 	scenes.append(load("res://scenes/character_select.tscn").instantiate())
+	scenes.append(load("res://scenes/town_hall.tscn").instantiate())
 	for scene in scenes:
 		root.add_child(scene)
 
