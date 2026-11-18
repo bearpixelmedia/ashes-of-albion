@@ -1,65 +1,104 @@
 extends Control
-## Title / intro menu (concept image 1). Enter World drops straight into
-## the world with the last committed class (Fighter by default),
-## Character Select opens the eight-archetype picker, Settings is a
-## Phase 6 stub, and Exit quits. Behind the panel a small 3D diorama
-## (two torches and a banner on a moonlit floor) orbits slowly.
+## Title screen (concept image 1): the front door of the prototype. Enter
+## World drops straight into the world with the last committed class,
+## Character Select opens the champion picker, Settings toggles a small
+## options panel (master volume + fullscreen) and Exit quits.
 
-const GOLD_BRIGHT := Color(1.0, 0.82, 0.35)
+const MAIN_SCENE := "res://scenes/main.tscn"
+const SELECT_SCENE := "res://scenes/character_select.tscn"
 
-var _starting := false
+## Where this screen last asked to go. Smoke tests flip auto_navigate off and
+## assert this instead of letting a scene change tear the test down.
+var requested_scene := ""
+var auto_navigate := true
 
-@onready var status_label: Label = %StatusLabel
-@onready var camera_pivot: Node3D = %CameraPivot
+## True while _ready seeds the widgets from the save, so those writes do not
+## bounce straight back to disk.
+var _bootstrapping := true
+
+@onready var title_label: Label = %TitleLabel
+@onready var continue_label: Label = %ContinueLabel
+@onready var enter_button: Button = %EnterWorld
+@onready var character_button: Button = %CharacterSelect
+@onready var settings_button: Button = %Settings
+@onready var exit_button: Button = %Exit
+@onready var settings_panel: Control = %SettingsPanel
+@onready var volume_slider: HSlider = %VolumeSlider
+@onready var fullscreen_check: CheckBox = %FullscreenCheck
+@onready var settings_back: Button = %SettingsBack
 
 
 func _ready() -> void:
+	SaveGame.restore()  # the champion, tree ranks and settings of the last launch
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	%EnterWorld.grab_focus()
-
-
-func _process(delta: float) -> void:
-	camera_pivot.rotation.y += delta * 0.06
+	enter_button.pressed.connect(enter_world)
+	character_button.pressed.connect(open_character_select)
+	settings_button.pressed.connect(open_settings)
+	exit_button.pressed.connect(quit_game)
+	settings_back.pressed.connect(close_settings)
+	volume_slider.value_changed.connect(_on_volume_changed)
+	fullscreen_check.toggled.connect(_on_fullscreen_toggled)
+	settings_panel.visible = false
+	volume_slider.value = clampf(db_to_linear(AudioServer.get_bus_volume_db(0)) * 100.0, 0.0, 100.0)
+	fullscreen_check.button_pressed = \
+			DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	var champion := str(ClassKit.by_id(ClassKit.selected).get("name", "Fighter"))
+	continue_label.text = "Continue as the %s" % champion
+	enter_button.grab_focus()
+	_bootstrapping = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		get_tree().quit()
-
-
-## Enter World: keep the committed class and load the world scene.
-func start_world() -> void:
-	if _starting:
+	if not (event is InputEventKey) or not event.pressed:
 		return
-	_starting = true
-	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	if event.keycode == KEY_ESCAPE and settings_panel.visible:
+		close_settings()
 
 
-## Character Select: open the archetype picker.
+# --- navigation ---------------------------------------------------------------
+
+## Enter World: straight into the world with the last committed class.
+func enter_world() -> void:
+	go_to(MAIN_SCENE)
+
+
 func open_character_select() -> void:
-	if _starting:
-		return
-	_starting = true
-	get_tree().change_scene_to_file("res://scenes/character_select.tscn")
+	go_to(SELECT_SCENE)
 
 
-## Settings stub — the real screen lands in Phase 6.
-func show_settings() -> void:
-	status_label.text = "Settings arrive in Phase 6 — audio, keybinds and camera."
-	status_label.add_theme_color_override("font_color", GOLD_BRIGHT)
+func go_to(path: String) -> void:
+	requested_scene = path
+	if auto_navigate:
+		get_tree().change_scene_to_file(path)
 
 
-func _on_enter_world() -> void:
-	start_world()
+# --- settings -----------------------------------------------------------------
+
+func open_settings() -> void:
+	settings_panel.visible = true
+	volume_slider.grab_focus()
 
 
-func _on_character_select() -> void:
-	open_character_select()
+func close_settings() -> void:
+	settings_panel.visible = false
+	settings_button.grab_focus()
 
 
-func _on_settings() -> void:
-	show_settings()
+func _on_volume_changed(value: float) -> void:
+	var linear := clampf(value / 100.0, 0.0, 1.0)
+	AudioServer.set_bus_mute(0, linear <= 0.0)
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(linear, 0.0001)))
+	if not _bootstrapping:
+		SaveGame.save()
 
 
-func _on_exit() -> void:
+func _on_fullscreen_toggled(pressed: bool) -> void:
+	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if pressed \
+			else DisplayServer.WINDOW_MODE_WINDOWED
+	DisplayServer.window_set_mode(mode)
+	if not _bootstrapping:
+		SaveGame.save()
+
+
+func quit_game() -> void:
 	get_tree().quit()

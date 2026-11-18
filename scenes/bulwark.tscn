@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/foe.gd" id="1"]
 [ext_resource type="Material" path="res://materials/armor.tres" id="2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Material" path="res://materials/cloth_green.tres" id="4"]
 [ext_resource type="Material" path="res://materials/bar_bg.tres" id="5"]
 [ext_resource type="Material" path="res://materials/bar_fill.tres" id="6"]
+[ext_resource type="Script" path="res://scripts/nameplate.gd" id="7"]
 
 [sub_resource type="CapsuleShape3D" id="body_col"]
 radius = 0.5
@@ -108,6 +109,8 @@ position = Vector3(0, 0.42, 0)
 text = "Bulwark"
 font_size = 44
 outline_size = 10
+script = ExtResource("7")
+faction = "corrupted"
 
 [node name="Telegraph" type="Label3D" parent="."]
 position = Vector3(0, 3.1, 0)

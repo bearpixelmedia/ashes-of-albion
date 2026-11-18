@@ -89,20 +89,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		spring_arm.rotation.x = clampf(
 			spring_arm.rotation.x - event.relative.y * mouse_sensitivity, -1.1, 0.5)
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		if camera_enabled:
-			# first Esc: release the mouse (camera look off)
-			camera_enabled = false
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			# second Esc (mouse already up): walk back up the front-end flow
-			get_tree().change_scene_to_file("res://scenes/character_select.tscn")
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
-			and not camera_enabled and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-		# clicking the open world recaptures the mouse (HUD clicks never reach here)
-		camera_enabled = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		_skip_attack_once = true
+	# Esc belongs to the in-world pause menu (scripts/pause_menu.gd), which
+	# owns mouse capture while it is open.
 
 
 func _physics_process(delta: float) -> void:
@@ -369,6 +357,9 @@ func setup_class(id: String) -> void:
 		_bow.visible = true
 	elif _bow != null:
 		_bow.visible = false
+	var plate := get_node_or_null("Nameplate")
+	if plate != null:
+		plate.set_title(str(ClassKit.by_id(id).get("name", id)).to_upper())
 
 
 ## The ranger's bow, built once from primitives the first time it is needed.

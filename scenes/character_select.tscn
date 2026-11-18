@@ -1,12 +1,14 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/character_select.gd" id="1"]
 [ext_resource type="Material" path="res://materials/stone.tres" id="2"]
 [ext_resource type="Material" path="res://materials/cobble.tres" id="3"]
 [ext_resource type="Material" path="res://materials/cloth_gold.tres" id="4"]
+[ext_resource type="Script" path="res://scripts/select_hall.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/heraldic_crest.gd" id="6"]
 
 [sub_resource type="StyleBoxFlat" id="panel_dark"]
-bg_color = Color(0.055, 0.065, 0.105, 0.96)
+bg_color = Color(0.055, 0.052, 0.06, 0.96)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
@@ -41,6 +43,18 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
+[sub_resource type="StyleBoxFlat" id="icon_fighter"]
+bg_color = Color(0.62, 0.16, 0.14, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.78, 0.35, 0.95)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+
 [sub_resource type="StyleBoxFlat" id="btn_dark"]
 bg_color = Color(0.08, 0.085, 0.12, 0.95)
 border_width_left = 1
@@ -66,30 +80,35 @@ corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
 [sub_resource type="CylinderMesh" id="plinth_base"]
-top_radius = 2.0
-bottom_radius = 2.1
+top_radius = 1.45
+bottom_radius = 1.5
 height = 0.25
 
 [sub_resource type="CylinderMesh" id="plinth_top"]
-top_radius = 1.55
-bottom_radius = 1.65
+top_radius = 1.15
+bottom_radius = 1.22
 height = 0.3
 
 [sub_resource type="TorusMesh" id="gold_ring"]
-inner_radius = 1.45
-outer_radius = 1.62
+inner_radius = 0.9
+outer_radius = 0.96
 
 [sub_resource type="CylinderMesh" id="floor_disc"]
-top_radius = 5.5
-bottom_radius = 5.5
+top_radius = 4.4
+bottom_radius = 4.4
 height = 0.1
+
+[sub_resource type="StandardMaterial3D" id="gold_trim"]
+albedo_color = Color(0.72, 0.53, 0.17, 1)
+metallic = 0.7
+roughness = 0.35
 
 [sub_resource type="Environment" id="select_env"]
 background_mode = 1
 background_color = Color(0.055, 0.06, 0.1, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.42, 0.46, 0.6, 1)
-ambient_light_energy = 1.0
+ambient_light_color = Color(0.3, 0.28, 0.38, 1)
+ambient_light_energy = 0.9
 
 [node name="CharacterSelect" type="Control"]
 layout_mode = 3
@@ -131,15 +150,20 @@ size = Vector2i(760, 780)
 
 [node name="PreviewCamera" type="Camera3D" parent="ViewportBox/SubViewport"]
 unique_name_in_owner = true
-position = Vector3(0, 2.6, 5.6)
+position = Vector3(0, 2.3, 5.2)
+fov = 50.0
 
 [node name="MoonLight" type="DirectionalLight3D" parent="ViewportBox/SubViewport"]
 rotation = Vector3(-0.7, 0.5, 0)
-light_energy = 1.15
+light_color = Color(0.68, 0.76, 1, 1)
+light_energy = 1.0
 shadow_enabled = true
 
 [node name="SelectEnv" type="WorldEnvironment" parent="ViewportBox/SubViewport"]
 environment = SubResource("select_env")
+
+[node name="Hall" type="Node3D" parent="ViewportBox/SubViewport"]
+script = ExtResource("5")
 
 [node name="FloorDisc" type="MeshInstance3D" parent="ViewportBox/SubViewport"]
 position = Vector3(0, -0.05, 0)
@@ -159,7 +183,7 @@ surface_material_override/0 = ExtResource("2")
 [node name="GoldRing" type="MeshInstance3D" parent="ViewportBox/SubViewport"]
 position = Vector3(0, 0.56, 0)
 mesh = SubResource("gold_ring")
-surface_material_override/0 = ExtResource("4")
+surface_material_override/0 = SubResource("gold_trim")
 
 [node name="FigureAnchor" type="Node3D" parent="ViewportBox/SubViewport"]
 unique_name_in_owner = true
@@ -174,41 +198,69 @@ offset_right = 400.0
 offset_bottom = 820.0
 theme_override_styles/panel = SubResource("panel_dark")
 
+[node name="Crest" type="Control" parent="LeftPanel"]
+layout_mode = 1
+offset_left = 166.0
+offset_top = 6.0
+offset_right = 210.0
+offset_bottom = 50.0
+mouse_filter = 2
+script = ExtResource("6")
+
 [node name="AshesTitle" type="Label" parent="LeftPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 30.0
+offset_top = 44.0
 offset_right = 356.0
-offset_bottom = 72.0
+offset_bottom = 86.0
 theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.75)
 theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 28
 text = "ASHES OF ALBION"
 horizontal_alignment = 1
 
 [node name="CharsHeader" type="Label" parent="LeftPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 82.0
+offset_top = 96.0
 offset_right = 356.0
-offset_bottom = 110.0
+offset_bottom = 122.0
 theme_override_colors/font_color = Color(0.85, 0.66, 0.2, 0.85)
 theme_override_font_sizes/font_size = 16
-text = "◆   CHARACTERS   ◆"
+text = "CHARACTERS"
 horizontal_alignment = 1
 
 [node name="Slot1" type="Panel" parent="LeftPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 130.0
+offset_top = 142.0
 offset_right = 356.0
-offset_bottom = 232.0
+offset_bottom = 244.0
 theme_override_styles/panel = SubResource("card_selected")
+
+[node name="Slot1Icon" type="Panel" parent="LeftPanel/Slot1"]
+layout_mode = 1
+offset_left = 14.0
+offset_top = 24.0
+offset_right = 54.0
+offset_bottom = 64.0
+theme_override_styles/panel = SubResource("icon_fighter")
+
+[node name="Crest" type="Control" parent="LeftPanel/Slot1/Slot1Icon"]
+layout_mode = 1
+offset_left = 5.0
+offset_top = 5.0
+offset_right = 35.0
+offset_bottom = 35.0
+mouse_filter = 2
+script = ExtResource("6")
+ring = false
+line_width = 1.5
 
 [node name="Slot1Name" type="Label" parent="LeftPanel/Slot1"]
 layout_mode = 1
-offset_left = 14.0
+offset_left = 64.0
 offset_top = 12.0
 offset_right = 322.0
 offset_bottom = 44.0
@@ -218,7 +270,7 @@ text = "Rowan Vale"
 
 [node name="Slot1Meta" type="Label" parent="LeftPanel/Slot1"]
 layout_mode = 1
-offset_left = 14.0
+offset_left = 64.0
 offset_top = 44.0
 offset_right = 322.0
 offset_bottom = 70.0
@@ -228,20 +280,20 @@ text = "Level 12"
 
 [node name="Slot1Realm" type="Label" parent="LeftPanel/Slot1"]
 layout_mode = 1
-offset_left = 14.0
+offset_left = 64.0
 offset_top = 70.0
 offset_right = 322.0
 offset_bottom = 96.0
 theme_override_colors/font_color = Color(0.35, 0.78, 0.38, 1)
 theme_override_font_sizes/font_size = 13
-text = "• Albion"
+text = "· Albion"
 
 [node name="Slot2" type="Panel" parent="LeftPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 252.0
+offset_top = 264.0
 offset_right = 356.0
-offset_bottom = 344.0
+offset_bottom = 356.0
 theme_override_styles/panel = SubResource("card_empty")
 
 [node name="Slot2Text" type="Label" parent="LeftPanel/Slot2"]
@@ -260,9 +312,9 @@ vertical_alignment = 1
 [node name="Slot3" type="Panel" parent="LeftPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 364.0
+offset_top = 376.0
 offset_right = 356.0
-offset_bottom = 456.0
+offset_bottom = 468.0
 theme_override_styles/panel = SubResource("card_empty")
 
 [node name="Slot3Text" type="Label" parent="LeftPanel/Slot3"]
@@ -286,7 +338,7 @@ offset_right = 356.0
 offset_bottom = 760.0
 theme_override_colors/font_color = Color(0.85, 0.66, 0.2, 0.6)
 theme_override_font_sizes/font_size = 14
-text = "─────  ◆  ─────"
+text = "·   ·   ·"
 horizontal_alignment = 1
 
 [node name="RightPanel" type="Panel" parent="."]
@@ -305,7 +357,7 @@ offset_right = 360.0
 offset_bottom = 56.0
 theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
 theme_override_font_sizes/font_size = 18
-text = "◆   ARCHETYPES   ◆"
+text = "ARCHETYPES"
 horizontal_alignment = 1
 
 [node name="RowList" type="VBoxContainer" parent="RightPanel"]
@@ -382,12 +434,13 @@ theme_override_styles/normal = SubResource("btn_dark")
 theme_override_styles/disabled = SubResource("btn_dark")
 
 [node name="Back" type="Button" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 offset_left = 1160.0
 offset_top = 832.0
 offset_right = 1400.0
 offset_bottom = 886.0
-theme_override_colors/font_color = Color(0.9, 0.82, 0.58, 1)
+theme_override_colors/font_color = Color(0.85, 0.75, 0.5, 0.7)
 theme_override_font_sizes/font_size = 17
 text = "Back"
 theme_override_styles/normal = SubResource("btn_dark")
