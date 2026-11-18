@@ -641,6 +641,58 @@ func _run() -> void:
 	await _frames(4)
 	ClassKit.selected = "fighter"
 
+	# ============ Phase 5: title screen + front-end flow ============
+
+	# --- the title screen boots the front end (concept image 1) ---
+	_check(str(ProjectSettings.get_setting("application/run/main_scene"))
+			== "res://scenes/title_screen.tscn",
+			"the project boots to the title screen")
+	var title = load("res://scenes/title_screen.tscn").instantiate()
+	add_child(title)
+	await _frames(4)
+	var title_label = title.get_node_or_null("CenterPanel/GameTitle")
+	_check(title_label != null and title_label.text == "ASHES OF ALBION",
+			"the title screen carries the game title")
+	var title_menu = title.get_node_or_null("CenterPanel/Menu")
+	_check(title_menu != null and title_menu.get_child_count() == 4,
+			"the menu offers Enter World, Character Select, Settings and Exit")
+	var menu_wired := true
+	for menu_name in ["EnterWorld", "CharacterSelect", "Settings", "Exit"]:
+		var btn = title.get_node("CenterPanel/Menu/" + menu_name)
+		var connections: Array = btn.pressed.get_connections()
+		var found := false
+		for connection in connections:
+			if connection["callable"].is_valid():
+				found = true
+		if not found:
+			menu_wired = false
+	_check(menu_wired, "every menu button is wired to its handler")
+	_check(title.get_node("VersionLabel").text.findn("Phase 5") >= 0,
+			"the version tag names the phase")
+	title.show_settings()
+	_check(title.status_label.text.findn("Phase 6") >= 0,
+			"Settings is a stub that promises Phase 6")
+	var title_yaw0: float = title.camera_pivot.rotation.y
+	await _frames(6)
+	_check(title.camera_pivot.rotation.y > title_yaw0,
+			"the backdrop diorama slowly orbits")
+	title.queue_free()
+	await _frames(2)
+
+	# --- the select screen's Back button returns to the title ---
+	var select2 = load("res://scenes/character_select.tscn").instantiate()
+	add_child(select2)
+	await _frames(3)
+	var back_btn = select2.get_node("Back")
+	_check(not back_btn.disabled, "the select screen's Back button is enabled")
+	var back_wired := false
+	for connection in back_btn.pressed.get_connections():
+		if connection["callable"].is_valid():
+			back_wired = true
+	_check(back_wired, "Back is wired to return to the title screen")
+	select2.queue_free()
+	await _frames(2)
+
 	# --- report ---
 	if failures.is_empty():
 		print("SMOKE_RESULT: PASS — %d/%d" % [total, total])

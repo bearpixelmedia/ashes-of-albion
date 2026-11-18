@@ -1,12 +1,12 @@
 ; Engine configuration file.
-; Godot 4.3 project — Ashes of Albion Phase 0 prototype.
+; Godot 4.3 project — Ashes of Albion Phases 0-5 prototype.
 
 config_version=5
 
 [application]
 
 config/name="Ashes of Albion"
-run/main_scene="res://scenes/character_select.tscn"
+run/main_scene="res://scenes/title_screen.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 boot_splash/bg_color=Color(0.05, 0.06, 0.1, 1)
 
