@@ -1,11 +1,11 @@
 # Ashes of Albion — Phase 0–5 Prototype
 
 A playable Godot 4.3 vertical slice of the AoC-mechanics MMO with Albion-style
-art direction: it opens on a **title screen** (concept image 1 — Enter World /
-Character Select / Settings / Exit), then a **character-select screen** (concept
-image 3 — character slots, a dais preview of your champion, the eight-archetype
-picker), then drops you into the dusk town square beside **Champions' Row** (the
-lineup from concept image 2). Walk the market street into the arena and fight a
+art direction: it opens on a **title screen** (Enter World / Character Select /
+Settings / Exit), then a **character-select screen** (concept image 3 — character
+slots, a dais preview of your champion in a torchlit cathedral hall, the
+eight-archetype picker), then drops you into the dusk town square beside
+**Champions' Row** (the lineup from concept image 2). Walk the market street into the arena and fight a
 **three-wave encounter** against three foe archetypes (melee warden, ranged
 harrier, shielded bulwark), with a results panel after each cleared wave.
 Two classes are playable: the **Fighter** (three-hit combo, Cleave, Second
@@ -38,13 +38,17 @@ square with the loop reset and your score preserved.
 | `Enter` | On the title and select screens: activate the focused entry (Enter World, Character Select, …) |
 | `Esc` | **In the world:** open / close the pause menu (Resume · Character Select · Title Screen). **On the title/select screens:** close settings / return to the title screen. |
 
-## Front end (concept image 1)
+## Front end
 
-The boot scene is **`res://scenes/title_screen.tscn`**: a dusk-gradient backdrop,
-the **ASHES OF ALBION** wordmark with its subtitle, `Continue as the <champion>`
-under it, and the four-entry gold-trimmed menu from the concept — **Enter
-World**, **Character Select**, **Settings**, **Exit** — with keyboard focus
-(arrows or `W`/`S`, `Enter`) and a version tag bottom-right.
+The concept set has no title-screen piece, so **`res://scenes/title_screen.tscn`**
+is built to the language the rest of the art uses: a dusk gradient behind a gold
+tree-of-life crest and the **ASHES OF ALBION** wordmark, two house banners and a
+hazy moon flanking it, and the four entries — **Enter World**, **Character
+Select**, **Settings**, **Exit** — set into a dark gold-bordered board with a
+gold primary button, keyboard focus (arrows or `W`/`S`, `Enter`) and a version
+tag bottom-right. The crest (`scripts/heraldic_crest.gd`) is drawn from lines,
+not a texture, and the same emblem is reused on the character-select panel and
+in the 3D hall.
 
 - **Enter World** loads `main.tscn` with the last committed class (the Fighter
   on a fresh run); **Character Select** opens the picker.
@@ -137,6 +141,13 @@ the same `archetype_figure.tscn` builder used in Champions' Row, rotated to
 face the camera), and the action bar below (`Enter World` and `Back` live, `Create New` /
 `Delete` present but disabled, prototype version tag bottom-right).
 
+Behind the dais `scripts/select_hall.gd` builds the concept's cathedral backdrop
+from primitives: pointed arches with gold trim, a moonlit window, four hanging
+house banners, torch sconces and a red carpet, with three ghostly champions on
+plinths behind the dais and a gold triquetra on the floor in front of it. Each
+archetype row carries a heraldic chip in its class colour, and the slot card
+carries the fighter's red crest.
+
 - Mouse or `W`/`S`/arrows cycle the roster; every archetype can be **previewed**
   on the dais, but **Enter World** is only enabled for playable classes
   (Fighter, Ranger) — the status line explains the rest.
@@ -214,7 +225,7 @@ ashes-of-albion/
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
 │   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # title_screen (front door + settings), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
+├── scripts/                 # title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
 └── tests/
     ├── smoke.tscn/.gd       # 168-check headless suite: loop + class kits + lineup + select + front end (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
@@ -225,7 +236,7 @@ ashes-of-albion/
 ## Verification (headless, Godot 4.3-stable)
 
 - `--import`: clean, no parse errors.
-- `tests/mesh_audit.gd` (main + character select): **275 mesh instances, 0 null meshes**.
+- `tests/mesh_audit.gd` (main + character select): **335 mesh instances, 0 null meshes**.
 - `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 168/168 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
@@ -271,9 +282,12 @@ does not occur with a real renderer.
     lock-on bolt curving to the target, Power Shot weight vs basic arrows,
     Tumble distance/speed and the i-frame window (does a warden swing pass
     through you mid-dash?), sword↔bow swap on class change, HUD hint swap.
-11. Phase 5 look: **title screen vs concept image 1** — wordmark scale/outline,
-    the dusk gradient, gold trim on the four menu entries, the focus highlight,
-    the settings panel, and whether it reads as the same set as the select screen.
+11. Phase 5 look: **title screen** — wordmark scale/outline, the dusk gradient,
+    the crest and banners, gold trim on the four menu entries, focus highlight
+    and the settings panel; and **the dais hall vs concept image 3** — do the
+    arches read as gothic, is the banner/torch lighting warm enough against the
+    blue moonlight, are the ghost plinths legible, and is the champion framed
+    like the concept rather than lost in the hall?
 12. Phase 5 feel: **front-end flow** — title → Enter World with the last
     champion, title → Character Select → Back, and the in-world `Esc` menu:
     pause/unpause, mouse release/recapture, and both exits back to the front end.

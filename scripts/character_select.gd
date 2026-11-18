@@ -7,6 +7,7 @@ extends Control
 ## ClassKit.selected and loads the world; Back (or Esc) returns to the title.
 
 const FIGURE_SCENE := preload("res://scenes/archetype_figure.tscn")
+const HERALDRY := preload("res://scripts/heraldic_crest.gd")
 const TITLE_SCENE := "res://scenes/title_screen.tscn"
 
 const GOLD := Color(0.85, 0.66, 0.2)
@@ -43,7 +44,7 @@ func _ready() -> void:
 	if resume >= 0:
 		selected_index = resume
 	select_class(selected_index)
-	preview_camera.look_at(Vector3(0, 1.3, 0))
+	preview_camera.look_at(Vector3(0, 1.5, 0))
 	back_button.pressed.connect(back_to_title)
 
 
@@ -72,6 +73,8 @@ func select_class(index: int) -> void:
 	figure = FIGURE_SCENE.instantiate()  # untyped: the figure owns its members
 	figure.archetype_index = selected_index
 	figure_anchor.add_child(figure)
+	if figure.nameplate != null:
+		figure.nameplate.visible = false  # the picker already names the class
 	var playable := ClassKit.is_playable(str(definition["id"]))
 	enter_button.disabled = not playable
 	if playable:
@@ -140,6 +143,9 @@ func _build_rows() -> void:
 		row.name = "Row%d" % i
 		row.custom_minimum_size = Vector2(336, 62)
 		row.pressed.connect(select_class.bind(i))
+		var chip := _class_chip(definition, 36.0)
+		row.add_child(chip)
+		chip.position = Vector2(12, 13)
 		var name_label := Label.new()
 		name_label.text = str(definition["name"])
 		name_label.add_theme_font_size_override("font_size", 19)
@@ -157,13 +163,36 @@ func _build_rows() -> void:
 		stack.add_child(blurb_label)
 		row.add_child(stack)
 		stack.set_anchors_preset(Control.PRESET_FULL_RECT)
-		stack.offset_left = 14
+		stack.offset_left = 58
 		stack.offset_top = 4
-		stack.offset_right = -14
+		stack.offset_right = -12
 		stack.offset_bottom = -4
 		row_list.add_child(row)
 		rows.append(row)
 	_apply_row_styles()
+
+
+## Small heraldic chip per archetype: the class colour in a gold-bordered
+## shield with the tree crest, echoing the class icons of the concept art.
+func _class_chip(definition: Dictionary, side: float) -> Panel:
+	var chip := Panel.new()
+	chip.custom_minimum_size = Vector2(side, side)
+	chip.size = Vector2(side, side)
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = definition["body"]
+	style.border_color = GOLD
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(7)
+	chip.add_theme_stylebox_override("panel", style)
+	var crest = HERALDRY.new()
+	crest.size = Vector2(side - 12.0, side - 12.0)
+	crest.position = Vector2(6, 6)
+	crest.ring = false
+	crest.line_color = Color(1.0, 0.92, 0.68, 0.92)
+	crest.line_width = 1.5
+	chip.add_child(crest)
+	return chip
 
 
 func _apply_row_styles() -> void:
