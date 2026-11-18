@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/cel.gdshader" id="1"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/albedo_color = Color(0.87, 0.68, 0.52, 1)
+shader_parameter/ambient_floor = 0.24
+shader_parameter/ambient_emit = 0.16
