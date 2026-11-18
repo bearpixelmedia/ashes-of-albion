@@ -699,9 +699,9 @@ func _run() -> void:
 	var flagged_warden = load("res://scenes/arena_warden.tscn").instantiate()
 	add_child(flagged_warden)
 	await _frames(3)
-	_check(flagged_warden.get_combat_flag() == CombatFlags.COMBATANT,
+	_check(CombatFlags.flag_of(flagged_warden) == CombatFlags.COMBATANT,
 			"the arena warden is flagged as a combatant")
-	_check(flagged_warden.get_combat_name() == "Arena Warden",
+	_check(CombatFlags.name_of(flagged_warden) == "Arena Warden",
 			"the flag carries the warden's name")
 	var warden_chip = flagged_warden.get_node_or_null("FlagChip")
 	_check(warden_chip != null, "the warden carries a flag chip")
@@ -712,20 +712,20 @@ func _run() -> void:
 	_check(warden_chip_label != null and warden_chip_label.modulate.is_equal_approx(
 			CombatFlags.color(CombatFlags.COMBATANT)),
 			"the combatant chip uses the purple flag colour")
-	_check(CombatFlags.is_hostile(CombatFlags.COMBATANT)
-			and not CombatFlags.is_hostile(CombatFlags.ALLY),
-			"combatants are hostile to the player, allies are not")
+	_check(CombatFlags.label("bogus") == "Neutral"
+			and CombatFlags.color("bogus") == CombatFlags.color(CombatFlags.NEUTRAL),
+			"an unknown flag falls back to Neutral")
 
 	var flagged_harrier = load("res://scenes/harrier.tscn").instantiate()
 	add_child(flagged_harrier)
 	await _frames(2)
-	_check(flagged_harrier.get_combat_flag() == CombatFlags.COMBATANT,
+	_check(CombatFlags.flag_of(flagged_harrier) == CombatFlags.COMBATANT,
 			"the harrier is flagged as a combatant")
-	_check(flagged_harrier.get_combat_name() == "Harrier",
+	_check(CombatFlags.name_of(flagged_harrier) == "Harrier",
 			"the harrier's flag reads its name")
 	flagged_harrier.queue_free()
 
-	_check(main.dummy.get_combat_flag() == CombatFlags.NEUTRAL,
+	_check(CombatFlags.flag_of(main.dummy) == CombatFlags.NEUTRAL,
 			"the training dummy is flagged neutral")
 	var dummy_chip = main.dummy.get_node_or_null("FlagChip")
 	_check(dummy_chip != null and dummy_chip.get_node("FlagLabel").text == "Neutral",

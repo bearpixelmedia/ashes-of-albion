@@ -12,9 +12,9 @@ Two classes are playable: the **Fighter** (three-hit combo, Cleave, Second
 Wind) and the **Ranger** (bow shots, Power Shot, Tumble). Lock on, trade blows
 on a poise/stagger system, die and respawn if you lose, then return to the
 square with the loop reset and your score preserved. Every combat actor is
-**combat-flagged** — Ally, Combatant, Corrupted or Neutral — with a tag chip
-above its head and a top-centre target frame plus an arena clock to match the
-combat HUD concept (image 4).
+**combat-flagged** — Ally, Combatant or Neutral — with a tag chip above its
+head and a top-centre target frame plus an arena clock to match the combat HUD
+concept (image 4).
 
 ## Run it
 
@@ -72,17 +72,15 @@ combat HUD concept (image 4).
 ## Combat flagging
 
 Every combat actor carries a **combat flag** using the vocabulary from the
-combat HUD concept (image 4): **Ally** (green), **Combatant** (purple),
-**Corrupted** (crimson) and **Neutral** (grey). `scripts/combat_flags.gd` is the
-single source of truth for the labels and colours, and the same flag is read in
-two places:
+combat HUD concept (image 4): **Ally** (green), **Combatant** (purple) and
+**Neutral** (grey). `scripts/combat_flags.gd` is the single source of truth for
+the labels and colours, and the same flag is read in two places:
 
 - **World chip:** a billboarded tag above the actor's head — dark plate,
-  flag-coloured border, flag label and the concept's downward chevron. It is a
-  quad plus a flat triangle, so it needs no glyphs or textures. Arena foes are
-  `Combatant`, the training dummy is `Neutral`, and all eight champions in
-  Champions' Row are `Ally`. A fallen actor's chip drops with it and returns on
-  reset.
+  flag-coloured border and flag label, all engine primitives with no glyphs or
+  textures. Arena foes are `Combatant`, the training dummy is `Neutral`, and all
+  eight champions in Champions' Row are `Ally`. A fallen actor's chip drops with
+  it and returns on reset.
 - **HUD target frame:** lock-on (`Q`) brings up the top-centre panel with the
   target's flag (upper case, in its colour), the target's name and a
   six-segment health bar in the flag's colour with `hp / max hp` over it. It
@@ -91,9 +89,8 @@ two places:
 `main.gd` also feeds the arena clock to the HUD: the gold hourglass row under
 the wave counter shows the run's `mm:ss` and hides again back in the square.
 
-Flags are data — `foe.gd` and `training_dummy.gd` export `combat_flag`, so a
-corrupted variant is one export away, and `CombatFlags.is_hostile()` already
-treats `Corrupted` as hostile alongside `Combatant`.
+Flags are data — `foe.gd` and `training_dummy.gd` export `combat_flag`, and any
+unknown flag falls back to `Neutral` in the chip and the target frame.
 
 ## Foe archetypes
 
@@ -251,7 +248,7 @@ ashes-of-albion/
   - Phase 3 (32): the player enters as the fighter; HUD shows `FIGHTER` above the bar with slots named `Cleave`/`Second Wind` and `3–5` locked (`–`); **Cleave hits two foes in one arc** (45 dmg each), enters its 6 s cooldown, dims HUD slot 1, is blocked by stamina without starting its cooldown, and damages the warden on lock-on; **Second Wind** heals 35 HP, starts its 18 s cooldown, shows the countdown on slot 2 and is blocked while recharging; the **weapon combo** chains 25 → 25 → 40 and resets after the 1.2 s window; **Champions' Row** stages all eight champions in concept-image order with readable nameplates, built weapon props, distinct body colours, a collidable plinth, the fighter's greatsword, the summoner's spectral ally and the tank's tower shield; the standalone `lineup.tscn` stages the same eight with its own camera.
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
   - Phase 5 (9): the project boots to `title_screen.tscn`; the title carries the game title; the menu offers all four entries and every button is wired to its handler; the version tag names the phase; Settings is a stub promising Phase 6; the backdrop diorama slowly orbits; the select screen's **Back** button is enabled and wired to return to the title.
-  - Combat flagging (23): the warden and harrier report `Combatant` with their scene names and purple chips, the training dummy reports `Neutral`, and all eight champions carry the `Ally` tag; combatants count as hostile while allies do not; a defeated foe's chip drops and returns on reset; locking on raises the top-centre target frame with the right flag, name, live health and a bar that drains on damage, then clears with the lock; the arena clock is hidden in the square, appears in the arena, reads `mm:ss` and counts up.
+  - Combat flagging (23): the warden and harrier report `Combatant` with their scene names and purple chips, the training dummy reports `Neutral`, all eight champions carry the `Ally` tag and an unknown flag falls back to `Neutral`; a defeated foe's chip drops and returns on reset; locking on raises the top-centre target frame with the right flag, name, live health and a bar that drains on damage, then clears with the lock; the arena clock is hidden in the square, appears in the arena, reads `mm:ss` and counts up.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title-screen scene `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
@@ -300,10 +297,10 @@ does not occur with a real renderer.
     on the title quits; `Enter World` from the title enters with the last
     committed class.
 13. Combat-flagging look: **flag chips vs the combat HUD concept (image 4)** —
-    plate/border proportions, label colour at gameplay distance, the chevron,
-    and the `Ally` tags over Champions' Row not crowding their nameplates; the
-    **target frame** flag colour, segmented bar and `hp / max hp` text, plus
-    the hourglass clock row under the wave counter.
+    plate/border proportions, label colour at gameplay distance, and the `Ally`
+    tags over Champions' Row not crowding their nameplates; the **target
+    frame** flag colour, segmented bar and `hp / max hp` text, plus the
+    hourglass clock under the minimap.
 
 ## Next recommended milestone
 

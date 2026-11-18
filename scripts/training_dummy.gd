@@ -26,7 +26,8 @@ var _bar_material: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("attackable")
-	combat_name = _read_name()
+	var plate := get_node_or_null("HealthBar/NameLabel") as Label3D
+	combat_name = plate.text if plate != null else name
 	flag_chip = CombatFlags.attach_chip(self, combat_flag, 3.0)
 	_bar_material = bar_fill.get_surface_override_material(0).duplicate() as StandardMaterial3D
 	bar_fill.set_surface_override_material(0, _bar_material)
@@ -55,8 +56,7 @@ func reset() -> void:
 	scale = Vector3.ONE
 	collision_shape.set_deferred("disabled", false)
 	health_bar.visible = true
-	if flag_chip != null:
-		flag_chip.visible = true
+	flag_chip.visible = true
 	_update_bar()
 	health_changed.emit(hp, max_hp)
 
@@ -64,26 +64,10 @@ func reset() -> void:
 func _defeat() -> void:
 	collision_shape.set_deferred("disabled", true)
 	health_bar.visible = false
-	if flag_chip != null:
-		flag_chip.visible = false
+	flag_chip.visible = false
 	var tween := create_tween()
 	tween.tween_property(self, "rotation", Vector3(-PI * 0.45, rotation.y, 0), 0.4) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-
-
-func _read_name() -> String:
-	var plate := get_node_or_null("HealthBar/NameLabel")
-	if plate is Label3D and not (plate as Label3D).text.strip_edges().is_empty():
-		return (plate as Label3D).text
-	return name
-
-
-func get_combat_flag() -> String:
-	return combat_flag
-
-
-func get_combat_name() -> String:
-	return combat_name
 
 
 func _update_bar() -> void:

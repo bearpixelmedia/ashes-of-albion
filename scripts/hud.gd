@@ -36,10 +36,9 @@ var slot_panels: Array = []
 
 var _flash_tween: Tween = null
 var _results_tween: Tween = null
-# Target frame + run timer state: only restyle/relabel when the value changes.
+# Target frame: fill style plus the target it was last styled for.
 var _target_fill: StyleBoxFlat = null
-var _target_flag := ""
-var _timer_second := -1
+var _target: Node = null
 
 
 func _ready() -> void:
@@ -103,69 +102,47 @@ func set_wave(wave: int, max_wave: int) -> void:
 	wave_label.text = "Wave %d / %d" % [wave, max_wave]
 
 
-## Arena run timer (concept: hourglass beside the target frame). main.gd feeds
-## the encounter clock every frame; the label only rewrites once a second.
+## Arena run timer (concept: hourglass under the minimap). main.gd feeds the
+## encounter clock every frame; the label rewrites only when the text changes.
 func set_timer(seconds: float, active: bool) -> void:
 	timer_row.visible = active
 	if not active:
-		_timer_second = -1
 		return
-	var whole := int(seconds)
-	if whole == _timer_second:
-		return
-	_timer_second = whole
-	timer_label.text = "%02d:%02d" % [int(whole / 60), whole % 60]
+	var text := "%02d:%02d" % [int(seconds) / 60, int(seconds) % 60]
+	if timer_label.text != text:
+		timer_label.text = text
 
 
-## Top-centre target frame for whatever the player has locked on: the flag
-## (Ally / Combatant / Corrupted / Neutral), the target's name and a segmented
-## health bar in the flag's colour.
+## Top-centre target frame for the locked target: its flag (Ally / Combatant /
+## Neutral), its name and a segmented health bar in the flag's colour.
 func _update_target_frame() -> void:
 	var target: Node = player.locked_target
-	if target == null or not is_instance_valid(target) or _is_down(target):
-		target_frame.visible = false
+	if target != null and (not is_instance_valid(target)
+			or float(target.get("hp")) <= 0.0):
+		target = null  # a fallen target drops its frame
+	target_frame.visible = target != null
+	if target != _target:
+		_target = target
+		if target != null:
+			_style_target_frame(target)
+	if target == null:
 		return
-	target_frame.visible = true
-
-	var flag := CombatFlags.NEUTRAL
-	if target.has_method("get_combat_flag"):
-		flag = CombatFlags.normalize(str(target.call("get_combat_flag")))
-	if flag != _target_flag:
-		_target_flag = flag
-		var tint := CombatFlags.color(flag)
-		target_flag_label.text = CombatFlags.label(flag).to_upper()
-		target_flag_label.add_theme_color_override("font_color", tint)
-		target_name_label.add_theme_color_override("font_color",
-				tint.lerp(Color(0.95, 0.93, 0.86, 1.0), 0.55))
-		_target_fill.bg_color = tint
-
-	var target_name := str(target.name)
-	if target.has_method("get_combat_name"):
-		target_name = str(target.call("get_combat_name"))
-	if target_name_label.text != target_name:
-		target_name_label.text = target_name
-
-	var hp_var: Variant = target.get("hp")
-	var max_var: Variant = target.get("max_hp")
-	var hp_value := float(hp_var) if hp_var != null else 0.0
-	var max_value := float(max_var) if max_var != null else maxf(hp_value, 1.0)
-	max_value = maxf(max_value, 1.0)
-	target_hp_bar.max_value = max_value
-	target_hp_bar.value = hp_value
-	var hp_text := "%d / %d" % [int(round(hp_value)), int(round(max_value))]
-	if target_hp_text.text != hp_text:
-		target_hp_text.text = hp_text
+	var hp := float(target.get("hp"))
+	var max_hp := maxf(float(target.get("max_hp")), 1.0)
+	target_hp_bar.max_value = max_hp
+	target_hp_bar.value = hp
+	var text := "%d / %d" % [int(round(hp)), int(round(max_hp))]
+	if target_hp_text.text != text:
+		target_hp_text.text = text
 
 
-## Same "is it already defeated" read the player uses for cleave arcs.
-func _is_down(target: Node) -> bool:
-	var defeated: Variant = target.get("is_defeated")
-	if defeated != null:
-		return bool(defeated)
-	var state_value: Variant = target.get("state")
-	if state_value != null:
-		return int(state_value) == 4  # foe.gd State.DOWN
-	return false
+func _style_target_frame(target: Node) -> void:
+	var flag := CombatFlags.flag_of(target)
+	var tint := CombatFlags.color(flag)
+	target_flag_label.text = CombatFlags.label(flag).to_upper()
+	target_flag_label.add_theme_color_override("font_color", tint)
+	target_name_label.text = CombatFlags.name_of(target)
+	_target_fill.bg_color = tint
 
 
 func show_results(title: String, body: String, duration: float = 4.0) -> void:
