@@ -80,10 +80,12 @@ func select_class(index: int) -> void:
 		status_label.add_theme_color_override("font_color", DIM_TEXT)
 
 
-## Commit the pick to the shared selection the world reads on boot.
-## Returns the committed class id (start_world wraps this).
+## Commit the pick to the shared selection the world reads on boot, and to the
+## save so the next launch returns to this champion. Returns the class id
+## (start_world wraps this).
 func commit_selection() -> String:
 	ClassKit.selected = str(ClassKit.by_index(selected_index)["id"])
+	Progress.remember_class(ClassKit.selected)
 	return ClassKit.selected
 
 

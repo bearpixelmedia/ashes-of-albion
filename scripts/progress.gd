@@ -21,6 +21,8 @@ static var renown := 0
 static var best_waves := 0
 static var best_kills := 0
 static var best_time := 0.0
+## The champion Enter World last committed; the next launch boots it.
+static var last_class := ""
 
 static var _unlocked: Array[String] = []
 static var _loaded := false
@@ -44,6 +46,9 @@ static func load_save() -> void:
 	best_waves = maxi(int(file.get_value(SECTION, "best_waves", 0)), 0)
 	best_kills = maxi(int(file.get_value(SECTION, "best_kills", 0)), 0)
 	best_time = maxf(float(file.get_value(SECTION, "best_time", 0.0)), 0.0)
+	last_class = str(file.get_value(SECTION, "class", ""))
+	if not last_class.is_empty() and ClassKit.is_playable(last_class):
+		ClassKit.selected = last_class  # the world and the picker resume on it
 	for id in file.get_value(SECTION, "unlocked", PackedStringArray()):
 		var class_id := str(id)
 		if class_id != "" and not _unlocked.has(class_id):
@@ -73,6 +78,7 @@ static func save_now() -> void:
 	file.set_value(SECTION, "best_waves", best_waves)
 	file.set_value(SECTION, "best_kills", best_kills)
 	file.set_value(SECTION, "best_time", best_time)
+	file.set_value(SECTION, "class", last_class)
 	file.set_value(SECTION, "unlocked", PackedStringArray(_unlocked))
 	file.save(save_path)
 
@@ -135,6 +141,19 @@ static func best_text() -> String:
 	return "Wave %d · %02d:%02d" % [best_waves, minutes, seconds]
 
 
+# --- last committed class --------------------------------------------------
+
+## Remember the champion the select screen just committed: the next launch
+## reopens the picker on it and the world boots it instead of the fighter.
+static func remember_class(class_id: String) -> void:
+	ensure_loaded()
+	if class_id.is_empty() or not ClassKit.is_playable(class_id):
+		return
+	last_class = class_id
+	ClassKit.selected = class_id
+	save_now()
+
+
 # --- earned third slot -----------------------------------------------------
 
 ## Unlock a class's third skill slot; returns true when it was newly earned.
@@ -170,6 +189,7 @@ static func unlock_summary() -> String:
 
 static func _clear() -> void:
 	renown = 0
+	last_class = ""
 	best_waves = 0
 	best_kills = 0
 	best_time = 0.0

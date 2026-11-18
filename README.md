@@ -216,11 +216,12 @@ next launch (the world and the select screen both call `Progress.ensure_loaded()
 | **Renown** | +5 per kill, +15 per cleared wave, +40 for a whole cleared arena | the character card (`Rowan Vale`), the `Arena Cleared` results panel |
 | **Personal best run** | the furthest arena run (waves cleared), ties broken by kills and then the faster clock | the character card as `Best run Wave 3 · 01:12` |
 | **Third slot, per class** | clearing all three waves as that class | the card's `Third slot earned: …` line and hotbar slot `3` |
+| **Last committed class** | **Enter World** on the select screen | the next launch reopens the picker on that champion and the world boots as it |
 
 Clearing the arena with the **Fighter** earns **Whirlwind**; with the **Ranger**,
 **Volley**. Until then slot `3` stays `–` / `locked` and `use_skill_3()` is
 inert, and the `Arena Cleared` panel says which skill just unlocked. The save
-only ever holds these three values, so deleting it simply resets progress.
+only ever holds these four values, so deleting it simply resets progress.
 
 ## Wave table
 
@@ -258,7 +259,7 @@ ashes-of-albion/
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
 ├── scripts/                 # title_screen (front-end loop), character_select (select + commit ClassKit.selected), player (fighter+ranger kits + earned third skill + Esc/Back flow), class_kit (8 archetypes, skills, selection), progress (user:// save: renown, best run, earned slots), combat_flags (flag table + billboarded tag chips), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (incl. target frame + arena clock), main (wave loop + progress hooks + apply_class), town_layout
 ├── tests/
-│   ├── smoke.tscn/.gd       # 207-check headless suite: loop + class kits + lineup + character select + title screen + progress save (exit code 0/1, 900 s watchdog)
+│   ├── smoke.tscn/.gd       # 211-check headless suite: loop + class kits + lineup + character select + title screen + progress save (exit code 0/1, 900 s watchdog)
 │   ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
 │   ├── probe.gd             # camera placement probe
 │   └── mesh_audit.gd        # null-mesh audit over title + main + character select (0 found of 318)
@@ -270,7 +271,7 @@ ashes-of-albion/
 
 - `--import`: clean, no parse errors.
 - `tests/mesh_audit.gd` (title + main + character select): **318 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 207/207 checks**, exit code 0
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 211/211 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
@@ -278,7 +279,7 @@ ashes-of-albion/
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
   - Phase 5 (9): the project boots to `title_screen.tscn`; the title carries the game title; the menu offers all four entries and every button is wired to its handler; the version tag names the phase; Settings is a stub promising Phase 6; the backdrop diorama slowly orbits; the select screen's **Back** button is enabled and wired to return to the title.
   - Combat flagging (23): the warden and harrier report `Combatant` with their scene names and purple chips, the training dummy reports `Neutral`, all eight champions carry the `Ally` tag and an unknown flag falls back to `Neutral`; a defeated foe's chip drops and returns on reset; locking on raises the top-centre target frame with the right flag, name, live health and a bar that drains on damage, then clears with the lock; the arena clock is hidden in the square, appears in the arena, reads `mm:ss` and counts up.
-  - Progress (27): renown adds up from kills and waves; a first run sets the personal best and shorter/slower runs never replace it while a longer, bloodier or faster one does, and the best reads as `Wave 3 · 01:12`; the record is written to `user://`; clearing the arena unlocks the third slot **per class** (the fighter's `Whirlwind` named and keyed on the HUD, the ranger's still `locked`); the earned `Whirlwind` damages a foe standing behind the player and starts its cooldown; **renown, the personal best and the earned slot all survive a `Progress.reload()` relaunch**; clearing as the ranger pays arena renown, banks the run as the new best, lights slot `3` as `Volley`, names the skill in the results panel and the earned `Volley` is usable; and the character card shows the saved renown, best run and earned classes.
+  - Progress (31): renown adds up from kills and waves; a first run sets the personal best and shorter/slower runs never replace it while a longer, bloodier or faster one does, and the best reads as `Wave 3 · 01:12`; the record is written to `user://`; clearing the arena unlocks the third slot **per class** (the fighter's `Whirlwind` named and keyed on the HUD, the ranger's still `locked`); the earned `Whirlwind` damages a foe standing behind the player and starts its cooldown; **renown, the personal best and the earned slot all survive a `Progress.reload()` relaunch**; clearing as the ranger pays arena renown, banks the run as the new best, lights slot `3` as `Volley`, names the skill in the results panel and the earned `Volley` is usable; the character card shows the saved renown, best run and earned classes; and the last committed class is written by the select screen, survives a relaunch with `ClassKit.selected` restored and boots a freshly instanced world as that champion.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title-screen scene `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.

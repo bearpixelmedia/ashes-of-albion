@@ -886,8 +886,26 @@ func _run() -> void:
 			"the character card shows the personal best run")
 	_check(card_unlock.text.findn("Fighter") >= 0 and card_unlock.text.findn("Ranger") >= 0,
 			"the character card lists the classes with an earned slot")
+
+	# --- the last committed class is saved with the record ---
+	card.select_class(ClassKit.index_of("ranger"))
+	_check(card.commit_selection() == "ranger", "the select screen commits the ranger")
+	_check(Progress.last_class == "ranger", "the committed class is written to the save")
 	card.queue_free()
 	await _frames(2)
+
+	# a fresh process starts on the default, then reads the save back
+	ClassKit.selected = "fighter"
+	Progress.relaunch()
+	_check(Progress.last_class == "ranger" and ClassKit.selected == "ranger",
+			"a relaunch restores the last committed class")
+	var relaunched = load("res://scenes/main.tscn").instantiate()
+	add_child(relaunched)
+	await _frames(6)
+	_check(relaunched.player.class_id == "ranger",
+			"the relaunched world boots as the committed class")
+	relaunched.queue_free()
+	await _frames(3)
 
 	# --- leave no save behind for the next run ---
 	Progress.forget()
