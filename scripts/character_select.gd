@@ -64,6 +64,7 @@ func select_class(index: int) -> void:
 		figure.queue_free()
 	figure = FIGURE_SCENE.instantiate()  # untyped: the figure owns its members
 	figure.archetype_index = selected_index
+	figure.show_flag_chip = false  # the combat chip belongs to the world, not the dais
 	figure_anchor.add_child(figure)
 	var playable := ClassKit.is_playable(str(definition["id"]))
 	enter_button.disabled = not playable

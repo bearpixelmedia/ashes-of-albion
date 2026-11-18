@@ -21,6 +21,13 @@ var player = null  # the player scene root; untyped so hp/stamina/lock fields re
 @onready var results_panel: Control = %ResultsPanel
 @onready var results_title: Label = %ResultsTitle
 @onready var results_body: Label = %ResultsBody
+@onready var target_frame: Control = %TargetFrame
+@onready var target_flag_label: Label = %TargetFlagLabel
+@onready var target_name_label: Label = %TargetNameLabel
+@onready var target_hp_bar: ProgressBar = %TargetHPBar
+@onready var target_hp_text: Label = %TargetHPText
+@onready var timer_row: Control = %TimerRow
+@onready var timer_label: Label = %TimerLabel
 
 # Hotbar slots: key caption, skill name and the panel that dims on cooldown.
 var slot_keys: Array = []
@@ -29,9 +36,16 @@ var slot_panels: Array = []
 
 var _flash_tween: Tween = null
 var _results_tween: Tween = null
+# Target frame + run timer state: only restyle/relabel when the value changes.
+var _target_fill: StyleBoxFlat = null
+var _target_flag := ""
+var _timer_second := -1
 
 
 func _ready() -> void:
+	_target_fill = StyleBoxFlat.new()
+	_target_fill.bg_color = CombatFlags.color(CombatFlags.NEUTRAL)
+	target_hp_bar.add_theme_stylebox_override("fill", _target_fill)
 	for i in 5:
 		var slot_path := "Hotbar/Slot%d" % (i + 1)
 		slot_panels.append(get_node(slot_path))
@@ -89,6 +103,71 @@ func set_wave(wave: int, max_wave: int) -> void:
 	wave_label.text = "Wave %d / %d" % [wave, max_wave]
 
 
+## Arena run timer (concept: hourglass beside the target frame). main.gd feeds
+## the encounter clock every frame; the label only rewrites once a second.
+func set_timer(seconds: float, active: bool) -> void:
+	timer_row.visible = active
+	if not active:
+		_timer_second = -1
+		return
+	var whole := int(seconds)
+	if whole == _timer_second:
+		return
+	_timer_second = whole
+	timer_label.text = "%02d:%02d" % [int(whole / 60), whole % 60]
+
+
+## Top-centre target frame for whatever the player has locked on: the flag
+## (Ally / Combatant / Corrupted / Neutral), the target's name and a segmented
+## health bar in the flag's colour.
+func _update_target_frame() -> void:
+	var target: Node = player.locked_target
+	if target == null or not is_instance_valid(target) or _is_down(target):
+		target_frame.visible = false
+		return
+	target_frame.visible = true
+
+	var flag := CombatFlags.NEUTRAL
+	if target.has_method("get_combat_flag"):
+		flag = CombatFlags.normalize(str(target.call("get_combat_flag")))
+	if flag != _target_flag:
+		_target_flag = flag
+		var tint := CombatFlags.color(flag)
+		target_flag_label.text = CombatFlags.label(flag).to_upper()
+		target_flag_label.add_theme_color_override("font_color", tint)
+		target_name_label.add_theme_color_override("font_color",
+				tint.lerp(Color(0.95, 0.93, 0.86, 1.0), 0.55))
+		_target_fill.bg_color = tint
+
+	var target_name := str(target.name)
+	if target.has_method("get_combat_name"):
+		target_name = str(target.call("get_combat_name"))
+	if target_name_label.text != target_name:
+		target_name_label.text = target_name
+
+	var hp_var: Variant = target.get("hp")
+	var max_var: Variant = target.get("max_hp")
+	var hp_value := float(hp_var) if hp_var != null else 0.0
+	var max_value := float(max_var) if max_var != null else maxf(hp_value, 1.0)
+	max_value = maxf(max_value, 1.0)
+	target_hp_bar.max_value = max_value
+	target_hp_bar.value = hp_value
+	var hp_text := "%d / %d" % [int(round(hp_value)), int(round(max_value))]
+	if target_hp_text.text != hp_text:
+		target_hp_text.text = hp_text
+
+
+## Same "is it already defeated" read the player uses for cleave arcs.
+func _is_down(target: Node) -> bool:
+	var defeated: Variant = target.get("is_defeated")
+	if defeated != null:
+		return bool(defeated)
+	var state_value: Variant = target.get("state")
+	if state_value != null:
+		return int(state_value) == 4  # foe.gd State.DOWN
+	return false
+
+
 func show_results(title: String, body: String, duration: float = 4.0) -> void:
 	## Loop-results panel: wave cleared / arena cleared / fallen.
 	if _results_tween != null and _results_tween.is_valid():
@@ -132,6 +211,7 @@ func _process(_delta: float) -> void:
 	stamina_bar.value = player.stamina
 	poise_bar.value = player.poise
 	reticle.visible = player.locked_target != null and is_instance_valid(player.locked_target)
+	_update_target_frame()
 
 	# Fighter skill cooldowns on hotbar slots 1 (Cleave) and 2 (Second Wind).
 	_update_slot(0, player.skill1_cd, "1")

@@ -693,6 +693,96 @@ func _run() -> void:
 	select2.queue_free()
 	await _frames(2)
 
+	# ============ Combat flagging: chips, target frame, run timer ============
+
+	# --- foes are flagged combatants; the sparring dummy is neutral ---
+	var flagged_warden = load("res://scenes/arena_warden.tscn").instantiate()
+	add_child(flagged_warden)
+	await _frames(3)
+	_check(flagged_warden.get_combat_flag() == CombatFlags.COMBATANT,
+			"the arena warden is flagged as a combatant")
+	_check(flagged_warden.get_combat_name() == "Arena Warden",
+			"the flag carries the warden's name")
+	var warden_chip = flagged_warden.get_node_or_null("FlagChip")
+	_check(warden_chip != null, "the warden carries a flag chip")
+	var warden_chip_label = warden_chip.get_node_or_null("FlagLabel") \
+			if warden_chip != null else null
+	_check(warden_chip_label != null and warden_chip_label.text == "Combatant",
+			"the warden's chip reads Combatant")
+	_check(warden_chip_label != null and warden_chip_label.modulate.is_equal_approx(
+			CombatFlags.color(CombatFlags.COMBATANT)),
+			"the combatant chip uses the purple flag colour")
+	_check(CombatFlags.is_hostile(CombatFlags.COMBATANT)
+			and not CombatFlags.is_hostile(CombatFlags.ALLY),
+			"combatants are hostile to the player, allies are not")
+
+	var flagged_harrier = load("res://scenes/harrier.tscn").instantiate()
+	add_child(flagged_harrier)
+	await _frames(2)
+	_check(flagged_harrier.get_combat_flag() == CombatFlags.COMBATANT,
+			"the harrier is flagged as a combatant")
+	_check(flagged_harrier.get_combat_name() == "Harrier",
+			"the harrier's flag reads its name")
+	flagged_harrier.queue_free()
+
+	_check(main.dummy.get_combat_flag() == CombatFlags.NEUTRAL,
+			"the training dummy is flagged neutral")
+	var dummy_chip = main.dummy.get_node_or_null("FlagChip")
+	_check(dummy_chip != null and dummy_chip.get_node("FlagLabel").text == "Neutral",
+			"the dummy's chip reads Neutral")
+
+	# --- every champion in the square is flagged as an ally ---
+	var champion_row = main.get_node("ChampionsRow")
+	var allies_flagged: bool = champion_row.figures.size() == 8
+	for figure in champion_row.figures:
+		var chip = figure.get_node_or_null("FlagChip")
+		if chip == null or chip.get_node("FlagLabel").text != "Ally":
+			allies_flagged = false
+	_check(allies_flagged, "all eight champions carry the Ally tag")
+
+	# --- the chip drops when a combatant falls and returns on reset ---
+	flagged_warden.take_damage(9999.0)
+	await _frames(2)
+	_check(not warden_chip.visible, "the flag chip drops when the combatant falls")
+	flagged_warden.reset()
+	await _frames(2)
+	_check(warden_chip.visible, "the chip returns when the foe resets")
+
+	# --- the HUD target frame mirrors the locked target's flag ---
+	player.locked_target = flagged_warden
+	await _frames(4)
+	_check(hud.target_frame.visible, "the target frame appears for a locked target")
+	_check(hud.target_flag_label.text == "COMBATANT",
+			"the target frame reads the combatant flag")
+	_check(hud.target_name_label.text == "Arena Warden",
+			"the target frame names the target")
+	_check(is_equal_approx(hud.target_hp_bar.value, flagged_warden.hp),
+			"the target frame tracks the target's health")
+	flagged_warden.take_damage(60.0)
+	await _frames(3)
+	_check(hud.target_hp_bar.value <= flagged_warden.max_hp - 59.0,
+			"the target bar drops as the target takes damage")
+	player.locked_target = null
+	await _frames(3)
+	_check(not hud.target_frame.visible, "the target frame clears when lock-on drops")
+	flagged_warden.queue_free()
+	await _frames(2)
+
+	# --- the arena run clock (hourglass row in the HUD) ---
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(0, 0.85, 8.0)
+	await _frames(5)
+	_check(not hud.timer_row.visible, "the run timer is hidden outside the arena")
+	player.global_position = Vector3(0, 0.85, -17.5)
+	await _frames(5)
+	_check(main.zone == "Combat Arena" and hud.timer_row.visible,
+			"the run timer appears in the arena")
+	var timer_text0: String = hud.timer_label.text
+	_check(timer_text0.length() == 5 and timer_text0[2] == ":",
+			"the run timer reads mm:ss")
+	await _frames(120)
+	_check(hud.timer_label.text != timer_text0, "the run timer counts up")
+
 	# --- report ---
 	if failures.is_empty():
 		print("SMOKE_RESULT: PASS — %d/%d" % [total, total])

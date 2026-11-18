@@ -11,7 +11,10 @@ harrier, shielded bulwark), with a results panel after each cleared wave.
 Two classes are playable: the **Fighter** (three-hit combo, Cleave, Second
 Wind) and the **Ranger** (bow shots, Power Shot, Tumble). Lock on, trade blows
 on a poise/stagger system, die and respawn if you lose, then return to the
-square with the loop reset and your score preserved.
+square with the loop reset and your score preserved. Every combat actor is
+**combat-flagged** — Ally, Combatant, Corrupted or Neutral — with a tag chip
+above its head and a top-centre target frame plus an arena clock to match the
+combat HUD concept (image 4).
 
 ## Run it
 
@@ -65,6 +68,32 @@ square with the loop reset and your score preserved.
    foes are removed, the placed opponents reset (HP full, warden home and
    idle), the wave counter and results panel hide, score is preserved,
    controls unchanged. Repeat.
+
+## Combat flagging
+
+Every combat actor carries a **combat flag** using the vocabulary from the
+combat HUD concept (image 4): **Ally** (green), **Combatant** (purple),
+**Corrupted** (crimson) and **Neutral** (grey). `scripts/combat_flags.gd` is the
+single source of truth for the labels and colours, and the same flag is read in
+two places:
+
+- **World chip:** a billboarded tag above the actor's head — dark plate,
+  flag-coloured border, flag label and the concept's downward chevron. It is a
+  quad plus a flat triangle, so it needs no glyphs or textures. Arena foes are
+  `Combatant`, the training dummy is `Neutral`, and all eight champions in
+  Champions' Row are `Ally`. A fallen actor's chip drops with it and returns on
+  reset.
+- **HUD target frame:** lock-on (`Q`) brings up the top-centre panel with the
+  target's flag (upper case, in its colour), the target's name and a
+  six-segment health bar in the flag's colour with `hp / max hp` over it. It
+  clears when lock-on drops or the target falls.
+
+`main.gd` also feeds the arena clock to the HUD: the gold hourglass row under
+the wave counter shows the run's `mm:ss` and hides again back in the square.
+
+Flags are data — `foe.gd` and `training_dummy.gd` export `combat_flag`, so a
+corrupted variant is one export away, and `CombatFlags.is_hostile()` already
+treats `Corrupted` as hostile alongside `Combatant`.
 
 ## Foe archetypes
 
@@ -201,9 +230,9 @@ ashes-of-albion/
 │   ├── projectile.tscn      # cover-aware bolt; friendly mode (player-fired) vs foe-fired
 │   ├── lineup.tscn          # Champions' Row: 8-figure lineup (standalone concept view)
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
-│   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, results panel, minimap, reticle, damage flash
+│   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, arena clock, target frame with segmented flag bar, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # title_screen (front-end loop), character_select (select + commit ClassKit.selected), player (fighter+ranger kits + Esc/Back flow), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
+├── scripts/                 # title_screen (front-end loop), character_select (select + commit ClassKit.selected), player (fighter+ranger kits + Esc/Back flow), class_kit (8 archetypes, skills, selection), combat_flags (flag table + billboarded tag chips), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (incl. target frame + arena clock), main (wave loop + apply_class), town_layout
 └── tests/
     ├── smoke.tscn/.gd       # 157-check headless suite: loop + class kits + lineup + character select + title screen (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
@@ -214,14 +243,15 @@ ashes-of-albion/
 ## Verification (headless, Godot 4.3-stable)
 
 - `--import`: clean, no parse errors.
-- `tests/mesh_audit.gd` (title + main + character select): **285 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 157/157 checks**, exit code 0
+- `tests/mesh_audit.gd` (title + main + character select): **318 mesh instances, 0 null meshes**.
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 180/180 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
   - Phase 3 (32): the player enters as the fighter; HUD shows `FIGHTER` above the bar with slots named `Cleave`/`Second Wind` and `3–5` locked (`–`); **Cleave hits two foes in one arc** (45 dmg each), enters its 6 s cooldown, dims HUD slot 1, is blocked by stamina without starting its cooldown, and damages the warden on lock-on; **Second Wind** heals 35 HP, starts its 18 s cooldown, shows the countdown on slot 2 and is blocked while recharging; the **weapon combo** chains 25 → 25 → 40 and resets after the 1.2 s window; **Champions' Row** stages all eight champions in concept-image order with readable nameplates, built weapon props, distinct body colours, a collidable plinth, the fighter's greatsword, the summoner's spectral ally and the tank's tower shield; the standalone `lineup.tscn` stages the same eight with its own camera.
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
   - Phase 5 (9): the project boots to `title_screen.tscn`; the title carries the game title; the menu offers all four entries and every button is wired to its handler; the version tag names the phase; Settings is a stub promising Phase 6; the backdrop diorama slowly orbits; the select screen's **Back** button is enabled and wired to return to the title.
+  - Combat flagging (23): the warden and harrier report `Combatant` with their scene names and purple chips, the training dummy reports `Neutral`, and all eight champions carry the `Ally` tag; combatants count as hostile while allies do not; a defeated foe's chip drops and returns on reset; locking on raises the top-centre target frame with the right flag, name, live health and a bar that drains on damage, then clears with the lock; the arena clock is hidden in the square, appears in the arena, reads `mm:ss` and counts up.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title-screen scene `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
@@ -269,6 +299,11 @@ does not occur with a real renderer.
     title; clicking the world recaptures the mouse *without* swinging; `Esc`
     on the title quits; `Enter World` from the title enters with the last
     committed class.
+13. Combat-flagging look: **flag chips vs the combat HUD concept (image 4)** —
+    plate/border proportions, label colour at gameplay distance, the chevron,
+    and the `Ally` tags over Champions' Row not crowding their nameplates; the
+    **target frame** flag colour, segmented bar and `hp / max hp` text, plus
+    the hourglass clock row under the wave counter.
 
 ## Next recommended milestone
 

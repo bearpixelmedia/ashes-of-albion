@@ -5,6 +5,8 @@ extends Node3D
 ## no art assets; the figure idles with a gentle bob and a floating nameplate.
 
 @export var archetype_index := 0
+## The Ally chip belongs in the world; the select screen's dais hides it.
+@export var show_flag_chip := true
 
 # Shared palette for props that recur across the roster.
 const FLESH := Color(0.85, 0.68, 0.55)
@@ -37,6 +39,9 @@ func _ready() -> void:
 	body_color = definition["body"]
 	nameplate = $Nameplate
 	nameplate.text = "%s\n%s" % [display_name, role]
+	# The champions stand with the player: an Ally chip above the nameplate.
+	if show_flag_chip:
+		CombatFlags.attach_chip(self, CombatFlags.ALLY, 3.2)
 	_build(definition)
 	_idle_sway()
 

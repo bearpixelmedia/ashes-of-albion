@@ -63,6 +63,7 @@ func _process(delta: float) -> void:
 		if _wave_pending <= 0.0:
 			_wave_pending = 0.0
 			_spawn_wave()
+	hud.set_timer(arena_time, _wave_active)
 
 
 func _on_arena_body_entered(body: Node3D) -> void:

@@ -21,6 +21,8 @@ const BAR_WIDTH := 1.4
 @export var recover_time := 1.4
 @export var attack_damage := 18.0
 @export var poise_damage := 35.0
+## Combat flag over the head and in the HUD target frame (see CombatFlags).
+@export var combat_flag: String = "combatant"
 
 # Ranged variant (harrier): holds a preferred band and fires bolts.
 @export var shoot_range := 14.0
@@ -47,6 +49,8 @@ var hp := 120.0
 var guard := 100.0
 var state: State = State.IDLE
 var home := Vector3.ZERO
+var combat_name := ""
+var flag_chip: Node3D = null
 var _timer := 0.0
 var _attack_cd := 0.0
 var _telegraph_size := 72
@@ -56,6 +60,8 @@ var _bar_material: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("attackable")
+	combat_name = _read_name()
+	flag_chip = CombatFlags.attach_chip(self, combat_flag, 3.15)
 	home = global_position
 	_telegraph_size = telegraph.font_size
 	_bar_material = bar_fill.get_surface_override_material(0).duplicate() as StandardMaterial3D
@@ -80,6 +86,8 @@ func reset() -> void:
 	telegraph.font_size = _telegraph_size
 	visual.rotation = Vector3.ZERO
 	weapon_pivot.rotation = Vector3(0, -0.4, 0)
+	if flag_chip != null:
+		flag_chip.visible = true
 	_update_bar()
 	health_changed.emit(hp, max_hp)
 
@@ -128,6 +136,8 @@ func _enter_guard_break() -> void:
 func _go_down() -> void:
 	state = State.DOWN
 	telegraph.visible = false
+	if flag_chip != null:
+		flag_chip.visible = false  # a fallen combatant stops advertising its flag
 	collision_shape.set_deferred("disabled", true)
 	velocity = Vector3.ZERO
 	var tween := create_tween()
@@ -308,6 +318,21 @@ func _face(dir: Vector3, delta: float) -> void:
 		return
 	var desired_yaw := atan2(-dir.x, -dir.z)
 	rotation.y = lerp_angle(rotation.y, desired_yaw, minf(10.0 * delta, 1.0))
+
+
+func _read_name() -> String:
+	var plate := get_node_or_null("HealthBar/NameLabel")
+	if plate is Label3D and not (plate as Label3D).text.strip_edges().is_empty():
+		return (plate as Label3D).text
+	return name
+
+
+func get_combat_flag() -> String:
+	return combat_flag
+
+
+func get_combat_name() -> String:
+	return combat_name
 
 
 func _update_bar() -> void:
