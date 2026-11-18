@@ -58,11 +58,11 @@ func set_class(definition: Dictionary) -> void:
 	## controls hint swaps for ranged classes (bow shots instead of combo).
 	class_label.text = str(definition.get("name", "")).to_upper()
 	if ClassKit.is_ranged(str(definition.get("id", ""))):
-		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    " \
-				+ "Q lock-on    LMB shoot    1 Power Shot    2 Tumble    Esc mouse"
+		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    Q lock-on\n" \
+				+ "LMB shoot    1 Power Shot    2 Tumble    Esc mouse"
 	else:
-		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    " \
-				+ "Q lock-on    LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
+		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    Q lock-on\n" \
+				+ "LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
 	var skills: Array = ClassKit.skill_names(str(definition.get("id", "")))
 	for i in slot_names.size():
 		var unlocked := i < skills.size()

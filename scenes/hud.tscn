@@ -609,12 +609,13 @@ unique_name_in_owner = true
 layout_mode = 1
 offset_left = 24.0
 offset_top = 20.0
-offset_right = 620.0
-offset_bottom = 70.0
+offset_right = 474.0
+offset_bottom = 74.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.85, 0.87, 0.95, 0.75)
 theme_override_font_sizes/font_size = 14
-text = "WASD move    Mouse camera    Shift sprint    Space jump    Q lock-on    LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
+text = "WASD move    Mouse camera    Shift sprint    Space jump    Q lock-on
+LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
 
 [node name="DamageFlash" type="ColorRect" parent="."]
 unique_name_in_owner = true
