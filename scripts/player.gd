@@ -88,12 +88,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		spring_arm.rotation.x = clampf(
 			spring_arm.rotation.x - event.relative.y * mouse_sensitivity, -1.1, 0.5)
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		camera_enabled = not camera_enabled
-		if camera_enabled:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		else:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Esc belongs to the in-world pause menu (scripts/pause_menu.gd), which
+	# owns mouse capture while it is open.
 
 
 func _physics_process(delta: float) -> void:

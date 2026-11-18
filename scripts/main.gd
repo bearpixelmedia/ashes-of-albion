@@ -18,6 +18,7 @@ const WARDEN_SCENE := preload("res://scenes/arena_warden.tscn")
 @onready var hud = $UI/HUD
 @onready var arena_trigger: Area3D = $ArenaTrigger
 @onready var foe_container: Node3D = $ArenaFoes
+@onready var pause_menu = $PauseMenu
 
 var zone := ZONE_SQUARE
 var kills := 0

@@ -1,10 +1,11 @@
-# Ashes of Albion — Phase 0–4 Prototype
+# Ashes of Albion — Phase 0–5 Prototype
 
 A playable Godot 4.3 vertical slice of the AoC-mechanics MMO with Albion-style
-art direction: it opens on a **character-select screen** (concept image 3 —
-character slots, a dais preview of your champion, the eight-archetype picker),
-then drops you into the dusk town square beside **Champions' Row** (the lineup
-from concept image 2). Walk the market street into the arena and fight a
+art direction: it opens on a **title screen** (concept image 1 — Enter World /
+Character Select / Settings / Exit), then a **character-select screen** (concept
+image 3 — character slots, a dais preview of your champion, the eight-archetype
+picker), then drops you into the dusk town square beside **Champions' Row** (the
+lineup from concept image 2). Walk the market street into the arena and fight a
 **three-wave encounter** against three foe archetypes (melee warden, ranged
 harrier, shielded bulwark), with a results panel after each cleared wave.
 Two classes are playable: the **Fighter** (three-hit combo, Cleave, Second
@@ -15,7 +16,8 @@ square with the loop reset and your score preserved.
 ## Run it
 
 - Open `ashes-of-albion/project.godot` in **Godot 4.3+** (GL Compatibility renderer, no extra assets required) and press **F5**.
-- Boot scene: **`res://scenes/character_select.tscn`** (already set as the project main scene) → pick an archetype → **Enter World**.
+- Boot scene: **`res://scenes/title_screen.tscn`** (the project main scene) → **Enter World** (last committed class) or **Character Select** → pick an archetype → **Enter World**.
+- In the world, `Esc` opens the pause menu: Resume, Character Select or Title Screen.
 - World scene: **`res://scenes/main.tscn`** (loads directly with the last committed class; useful for debugging, defaults to the Fighter).
 - Standalone lineup view: run **`res://scenes/lineup.tscn`** (F6) for a clean concept view of the eight champions.
 - Headless verification: `godot --headless --path ashes-of-albion res://tests/smoke.tscn`
@@ -24,7 +26,7 @@ square with the loop reset and your score preserved.
 
 | Input | Action |
 |---|---|
-| `W A S D` | Move (camera-relative) — on the select screen: `W`/`S` or arrows cycle archetypes |
+| `W A S D` | Move (camera-relative) — on the title/select screens: `W`/`S` or `↑`/`↓` move between menu entries / archetypes |
 | Mouse | Orbit camera (over-the-shoulder, spring-arm collision) — on the select screen: click rows and buttons |
 | `Shift` | Sprint (drains stamina) |
 | `Space` | Jump |
@@ -33,11 +35,38 @@ square with the loop reset and your score preserved.
 | `1` | **Fighter:** **Cleave** — 45 dmg arc (4.5 m cone, hits every foe), 30 stamina, 6 s CD · **Ranger:** **Power Shot** — 50 dmg bolt, 25 stamina, 5 s CD |
 | `2` | **Fighter:** **Second Wind** — heals 35 HP + 25 stamina, 18 s CD · **Ranger:** **Tumble** — evade dash with brief i-frames, 7 s CD |
 | `3`–`5` | Locked slots (`–`, dimmed) until their classes exist |
-| `Enter` | On the select screen: Enter World (with the highlighted playable class) |
-| `Esc` | Release / recapture the mouse (pauses camera look) |
+| `Enter` | On the title and select screens: activate the focused entry (Enter World, Character Select, …) |
+| `Esc` | **In the world:** open / close the pause menu (Resume · Character Select · Title Screen). **On the title/select screens:** close settings / return to the title screen. |
+
+## Front end (concept image 1)
+
+The boot scene is **`res://scenes/title_screen.tscn`**: a dusk-gradient backdrop,
+the **ASHES OF ALBION** wordmark with its subtitle, `Continue as the <champion>`
+under it, and the four-entry gold-trimmed menu from the concept — **Enter
+World**, **Character Select**, **Settings**, **Exit** — with keyboard focus
+(arrows or `W`/`S`, `Enter`) and a version tag bottom-right.
+
+- **Enter World** loads `main.tscn` with the last committed class (the Fighter
+  on a fresh run); **Character Select** opens the picker.
+- **Settings** opens a small panel: **master volume** (drives audio bus 0 live)
+  and a **fullscreen** toggle; `Back` or `Esc` closes it.
+- **Exit** quits the game.
+
+The picker's **Back** button (or `Esc`) returns to the title without committing
+a class, so the front-end loop is title → picker → world and back again. Every
+screen shares the dark-parchment + gold-trim styling.
+
+**In-world pause menu** (`scenes/pause_menu.tscn`, instanced by `main.tscn` as a
+`CanvasLayer`): `Esc` pauses the tree, frees the mouse and shows **Resume**,
+**Character Select** and **Title Screen**. Resume recaptures the mouse and
+unpauses; the other two unpause before changing scene, so no run is ever left
+frozen behind a menu. `Esc` belongs to the menu — the player no longer owns it.
 
 ## The loop
 
+0. **Title screen → world:** **Enter World** boots the world with the last
+   committed class; **Character Select** goes through the picker first. `Esc`
+   in the world opens the pause menu, which leads back to either screen.
 1. Spawn in the town square (`z = +8`) facing north; HUD shows zone **Town Square**.
 2. Walk the torch-lit path past 4 market stalls, 10 faction banners, 16 torches
    and 7 stone/timber buildings (all built from reusable prop scenes).
@@ -98,15 +127,15 @@ cooldown countdowns on `1`/`2`, and locks everything the class hasn't earned.
 
 ## Character select (concept image 3)
 
-`res://scenes/character_select.tscn` is the boot screen, laid out like the
-concept: the **CHARACTERS** slot card on the left (`Rowan Vale · Level 12 ·
+`res://scenes/character_select.tscn` is the picker behind the title screen's
+**Character Select**, laid out like the concept: the **CHARACTERS** slot card on the left (`Rowan Vale · Level 12 ·
 Albion` plus two empty slots), the **ARCHETYPES** picker on the right (all
 eight with their concept flavor lines — "Master the blade.", "Strike from
 afar.", …), the chosen champion on a **lit stone dais** in the centre
 (SubViewport with its own camera, light and dusk environment; the figure is
 the same `archetype_figure.tscn` builder used in Champions' Row, rotated to
-face the camera), and the action bar below (`Enter World` live, `Create New` /
-`Delete` / `Back` present but disabled, prototype version tag bottom-right).
+face the camera), and the action bar below (`Enter World` and `Back` live, `Create New` /
+`Delete` present but disabled, prototype version tag bottom-right).
 
 - Mouse or `W`/`S`/arrows cycle the roster; every archetype can be **previewed**
   on the dais, but **Enter World** is only enabled for playable classes
@@ -114,6 +143,7 @@ face the camera), and the action bar below (`Enter World` live, `Create New` /
 - `Enter` / **Enter World** commits the pick to `ClassKit.selected` and loads
   `main.tscn`, which applies it in `_ready` (so a directly launched world uses
   the last committed class, defaulting to the Fighter).
+- **Back** / `Esc` leaves for the title screen without committing.
 
 ## Ranger class kit
 
@@ -166,11 +196,13 @@ that reason).
 
 ```
 ashes-of-albion/
-├── project.godot            # 13 input actions (WASD/mouse + 5 hotbar), GL Compatibility, boot scene = character select
+├── project.godot            # 13 input actions (WASD/mouse + 5 hotbar), GL Compatibility, boot scene = title screen
 ├── shaders/cel.gdshader     # 3-tone cel ramp + ambient floor (dusk-readable)
 ├── materials/               # 15 cel materials (slate, timber, 4 faction cloths, bars…)
 ├── scenes/
-│   ├── character_select.tscn # boot screen: slot card, dais preview (SubViewport), 8-archetype picker, action bar
+│   ├── title_screen.tscn    # boot screen: wordmark, four-entry menu, settings panel (volume + fullscreen)
+│   ├── character_select.tscn # picker: slot card, dais preview (SubViewport), 8-archetype picker, action bar
+│   ├── pause_menu.tscn      # in-world Esc menu: Resume / Character Select / Title Screen
 │   ├── main.tscn            # world env (dusk sky+fog), moon light, ground, arena trigger, ArenaFoes, ChampionsRow instance
 │   ├── player.tscn          # CharacterBody3D + SpringArm3D/Camera3D + sword (bow built at runtime for the ranger)
 │   ├── training_dummy.tscn  # damageable + billboard health bar + defeat/reset
@@ -182,9 +214,9 @@ ashes-of-albion/
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
 │   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # character_select (boot + commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
+├── scripts/                 # title_screen (front door + settings), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
 └── tests/
-    ├── smoke.tscn/.gd       # 148-check headless suite: loop + class kits + lineup + character select (exit code 0/1, 900 s watchdog)
+    ├── smoke.tscn/.gd       # 168-check headless suite: loop + class kits + lineup + select + front end (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
     ├── probe.gd             # camera placement probe
     └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 275)
@@ -194,13 +226,15 @@ ashes-of-albion/
 
 - `--import`: clean, no parse errors.
 - `tests/mesh_audit.gd` (main + character select): **275 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 148/148 checks**, exit code 0
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 168/168 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
   - Phase 3 (32): the player enters as the fighter; HUD shows `FIGHTER` above the bar with slots named `Cleave`/`Second Wind` and `3–5` locked (`–`); **Cleave hits two foes in one arc** (45 dmg each), enters its 6 s cooldown, dims HUD slot 1, is blocked by stamina without starting its cooldown, and damages the warden on lock-on; **Second Wind** heals 35 HP, starts its 18 s cooldown, shows the countdown on slot 2 and is blocked while recharging; the **weapon combo** chains 25 → 25 → 40 and resets after the 1.2 s window; **Champions' Row** stages all eight champions in concept-image order with readable nameplates, built weapon props, distinct body colours, a collidable plinth, the fighter's greatsword, the summoner's spectral ally and the tank's tower shield; the standalone `lineup.tscn` stages the same eight with its own camera.
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
+  - Phase 5 (20): the project boots on the title screen; the menu offers all four entries and names the last committed champion; Enter World / Character Select request `main.tscn` / `character_select.tscn`; Settings opens and closes, and its volume slider drives the master audio bus; the picker's Back button is live and returns to the title; the world's pause menu opens over the scene, pauses the tree, resumes and unpauses, the `Esc` key opens it, and its Character Select / Title Screen entries unpause the run and request the right scene.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
+- Title screen `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
 
 Headless-only noise: `Parameter "m" is null` lines from the dummy renderer when
@@ -237,18 +271,20 @@ does not occur with a real renderer.
     lock-on bolt curving to the target, Power Shot weight vs basic arrows,
     Tumble distance/speed and the i-frame window (does a warden swing pass
     through you mid-dash?), sword↔bow swap on class change, HUD hint swap.
+11. Phase 5 look: **title screen vs concept image 1** — wordmark scale/outline,
+    the dusk gradient, gold trim on the four menu entries, the focus highlight,
+    the settings panel, and whether it reads as the same set as the select screen.
+12. Phase 5 feel: **front-end flow** — title → Enter World with the last
+    champion, title → Character Select → Back, and the in-world `Esc` menu:
+    pause/unpause, mouse release/recapture, and both exits back to the front end.
 
 ## Next recommended milestone
 
-**Phase 5 — Title screen + front-end flow (concept image 1), then a third
-class:** the intro/title menu (`Enter World / Character Select / Settings /
-Exit` from `intro-title-screen.png`) as the new boot scene, a Back path from
-the select screen to it, and an in-world way back to the select screen
-(death → "return to character select" option or an Esc menu), completing the
-front-end loop. Third playable class after that: **Mage** — `ClassKit` and
-`player.setup_class()` already branch by data (ranged flag + skill names), and
-`projectile.tscn`'s friendly mode gives it an instant bolt; its identity would
-come from an area skill (a ground-target nova reusing `_arc_targets`) and the
-wide-hat figure already previewable on the dais. Encounter groundwork stays
-open: `foe.gd` adds a variant by export values, `_composition()` in `main.gd`
-is a plain wave table.
+**Phase 6 — the Mage (third playable class), then encounter depth:** `ClassKit`
+and `player.setup_class()` already branch by data (ranged flag + skill names),
+and `projectile.tscn`'s friendly mode gives the Mage an instant bolt; its
+identity would come from an area skill (a ground-target nova reusing
+`_arc_targets`) and the wide-hat figure already previewable on the dais. After
+that, encounter groundwork: `foe.gd` adds a variant by export values and
+`_composition()` in `main.gd` is a plain wave table, so elite waves, mixed
+reinforcements and a boss wave are data changes rather than new systems.

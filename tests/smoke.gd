@@ -641,6 +641,81 @@ func _run() -> void:
 	await _frames(4)
 	ClassKit.selected = "fighter"
 
+	# ============ Phase 5: title screen + front-end flow ============
+
+	# --- the project boots on the title screen (concept image 1) ---
+	_check(ProjectSettings.get_setting("application/run/main_scene")
+			== "res://scenes/title_screen.tscn", "the project boots on the title screen")
+	var title = load("res://scenes/title_screen.tscn").instantiate()
+	title.auto_navigate = false
+	add_child(title)
+	await _frames(3)
+	_check(title.title_label.text == "ASHES OF ALBION", "the title screen names the game")
+	var menu_labels := [title.enter_button.text, title.character_button.text,
+			title.settings_button.text, title.exit_button.text]
+	_check(menu_labels == ["Enter World", "Character Select", "Settings", "Exit"],
+			"the title menu offers Enter World / Character Select / Settings / Exit")
+	_check(title.continue_label.text.findn("Fighter") >= 0,
+			"the title screen names the last committed champion")
+
+	# --- title actions route to the right scenes ---
+	title.enter_world()
+	_check(title.requested_scene == "res://scenes/main.tscn",
+			"Enter World on the title screen opens the world")
+	title.open_character_select()
+	_check(title.requested_scene == "res://scenes/character_select.tscn",
+			"Character Select opens the champion picker")
+
+	# --- the settings panel ---
+	_check(not title.settings_panel.visible, "settings start closed")
+	title.open_settings()
+	_check(title.settings_panel.visible, "Settings opens the options panel")
+	title.volume_slider.value = 40.0
+	_check(absf(AudioServer.get_bus_volume_db(0) - linear_to_db(0.4)) < 0.05,
+			"the volume slider drives the master bus")
+	title.volume_slider.value = 100.0
+	title.close_settings()
+	_check(not title.settings_panel.visible, "Back closes the settings panel")
+	title.queue_free()
+	await _frames(2)
+
+	# --- Back from the picker returns to the title ---
+	var select_back = load("res://scenes/character_select.tscn").instantiate()
+	select_back.auto_navigate = false
+	add_child(select_back)
+	await _frames(3)
+	_check(not select_back.back_button.disabled, "the picker's Back button is live")
+	select_back.back_to_title()
+	_check(select_back.requested_scene == "res://scenes/title_screen.tscn",
+			"Back returns to the title screen")
+	select_back.queue_free()
+	await _frames(2)
+
+	# --- in-world Esc menu: pause, resume and the way back out ---
+	var pause = main.pause_menu
+	pause.auto_navigate = false
+	_check(not pause.is_open, "the world starts with its menu closed")
+	pause.open()
+	_check(pause.is_open and pause.root.visible, "the menu opens over the world")
+	_check(get_tree().paused, "opening the menu pauses the world")
+	pause.close()
+	_check(not pause.is_open and not get_tree().paused, "Resume unpauses the world")
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	get_viewport().push_input(esc)
+	_check(pause.is_open, "the Esc key opens the menu")
+	pause.go_to_character_select()
+	_check(pause.requested_scene == "res://scenes/character_select.tscn",
+			"the menu returns to character select")
+	_check(not get_tree().paused and not pause.is_open,
+			"leaving the run unpauses before the scene change")
+	pause.open()
+	pause.go_to_title()
+	_check(pause.requested_scene == "res://scenes/title_screen.tscn",
+			"the menu can also go back to the title screen")
+
 	# --- report ---
 	if failures.is_empty():
 		print("SMOKE_RESULT: PASS — %d/%d" % [total, total])

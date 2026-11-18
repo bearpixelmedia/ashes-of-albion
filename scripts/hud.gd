@@ -46,10 +46,10 @@ func set_class(definition: Dictionary) -> void:
 	class_label.text = str(definition.get("name", "")).to_upper()
 	if ClassKit.is_ranged(str(definition.get("id", ""))):
 		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    " \
-				+ "Q lock-on    LMB shoot    1 Power Shot    2 Tumble    Esc mouse"
+				+ "Q lock-on    LMB shoot    1 Power Shot    2 Tumble    Esc menu"
 	else:
 		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    " \
-				+ "Q lock-on    LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
+				+ "Q lock-on    LMB attack combo    1 Cleave    2 Second Wind    Esc menu"
 	var skills: Array = ClassKit.skill_names(str(definition.get("id", "")))
 	for i in slot_names.size():
 		var unlocked := i < skills.size()

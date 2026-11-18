@@ -382,12 +382,12 @@ theme_override_styles/normal = SubResource("btn_dark")
 theme_override_styles/disabled = SubResource("btn_dark")
 
 [node name="Back" type="Button" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 offset_left = 1160.0
 offset_top = 832.0
 offset_right = 1400.0
 offset_bottom = 886.0
-disabled = true
 theme_override_colors/font_color = Color(0.85, 0.75, 0.5, 0.7)
 theme_override_font_sizes/font_size = 17
 text = "Back"
@@ -402,5 +402,5 @@ offset_right = 1576.0
 offset_bottom = 886.0
 theme_override_colors/font_color = Color(0.55, 0.57, 0.63, 0.9)
 theme_override_font_sizes/font_size = 12
-text = "Prototype 0.4 · Phase 4"
+text = "Prototype 0.5 · Phase 5"
 horizontal_alignment = 2
