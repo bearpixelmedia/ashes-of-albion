@@ -25,10 +25,6 @@ static func reset() -> void:
 	secondary = ""
 
 
-static func xp_to_next() -> int:
-	return XP_PER_LEVEL
-
-
 ## Bank experience and roll any levels it completes. Returns levels gained.
 static func add_xp(amount: int) -> int:
 	var gained := 0
@@ -42,11 +38,6 @@ static func add_xp(amount: int) -> int:
 
 static func award_kill() -> int:
 	return add_xp(XP_PER_KILL)
-
-
-## 0..1 through the current level, for a future XP bar.
-static func xp_fraction() -> float:
-	return clampf(float(xp) / float(XP_PER_LEVEL), 0.0, 1.0)
 
 
 static func points_total() -> int:

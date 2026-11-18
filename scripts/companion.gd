@@ -5,10 +5,6 @@ extends CharacterBody3D
 ## health she goes down for a while (and can be picked back up with E), which
 ## the HUD's party frame and her ALLY nameplate report.
 
-signal joined
-signal went_down
-signal revived
-
 @export var party_name := "Maelis Orr"
 @export var party_role := "Cleric"
 @export var max_hp := 80.0
@@ -22,7 +18,7 @@ signal revived
 @export var downed_time := 8.0
 @export var recruit_range := 4.0
 
-var hp := 80.0
+var hp := 0.0
 var recruited := false
 var is_downed := false
 var heal_cd := 0.0
@@ -30,7 +26,6 @@ var downed_timer := 0.0
 
 @onready var visual: Node3D = $Visual
 @onready var prompt: Label3D = $Prompt
-@onready var nameplate: Label3D = $Nameplate
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
@@ -68,8 +63,6 @@ func recruit() -> void:
 	is_downed = false
 	downed_timer = 0.0
 	hp = max_hp
-	heal_cd = maxf(heal_cd, 0.5)
-	joined.emit()
 
 
 ## Foes strike her through the same call they use on the player; poise is
@@ -79,14 +72,9 @@ func take_damage(amount: float, _poise: float = 0.0) -> void:
 		return
 	hp = maxf(hp - maxf(amount, 0.0), 0.0)
 	if hp <= 0.0:
-		_go_down()
-
-
-func _go_down() -> void:
-	is_downed = true
-	downed_timer = downed_time
-	heal_cd = 0.0
-	went_down.emit()
+		is_downed = true
+		downed_timer = downed_time
+		heal_cd = 0.0
 
 
 func revive() -> void:
@@ -94,57 +82,54 @@ func revive() -> void:
 		return
 	is_downed = false
 	downed_timer = 0.0
-	hp = maxf(hp, max_hp * 0.5)
-	revived.emit()
+	hp = max_hp * 0.5
 
 
 func _physics_process(delta: float) -> void:
-	if is_downed:
-		downed_timer -= delta
-		if downed_timer <= 0.0:
-			revive()
-		velocity = Vector3.ZERO
-		visual.rotation = Vector3(-PI * 0.45, 0.0, 0.0)
-		move_and_slide()
-		return
-	visual.rotation = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
 		velocity.y = 0.0
+	if is_downed:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		downed_timer -= delta
+		if downed_timer <= 0.0:
+			revive()
+		visual.rotation = Vector3(-PI * 0.45, 0.0, 0.0)
+		move_and_slide()
+		return
+	visual.rotation = Vector3.ZERO
 	heal_cd = maxf(heal_cd - delta, 0.0)
 
 	var target := _player()
-	if target == null:
-		velocity.x = 0.0
-		velocity.z = 0.0
-		move_and_slide()
-		return
-	var to_target := target.global_position - global_position
-	to_target.y = 0.0
-	var dist := to_target.length()
+	var to_target := Vector3.ZERO
+	var dist := INF
+	if target != null:
+		to_target = target.global_position - global_position
+		to_target.y = 0.0
+		dist = to_target.length()
 	prompt.visible = not recruited and dist <= recruit_range
-	if not recruited:
+	if recruited and target != null:
+		_try_heal(target, dist)
+
+	if not recruited or target == null:
 		velocity.x = 0.0
 		velocity.z = 0.0
-		move_and_slide()
-		return
-	_try_heal(target, dist)
-	if dist > follow_distance:
-		var dir := to_target.normalized()
+	elif dist > follow_distance:
+		var dir := to_target / dist
 		velocity.x = dir.x * move_speed
 		velocity.z = dir.z * move_speed
 		_face(dir, delta)
 	else:
-		velocity.x = lerpf(velocity.x, 0.0, minf(10.0 * delta, 1.0))
-		velocity.z = lerpf(velocity.z, 0.0, minf(10.0 * delta, 1.0))
+		var damp := minf(10.0 * delta, 1.0)
+		velocity.x = lerpf(velocity.x, 0.0, damp)
+		velocity.z = lerpf(velocity.z, 0.0, damp)
 	move_and_slide()
 
 
 func _try_heal(target, dist: float) -> void:
-	if heal_cd > 0.0 or dist > heal_range:
-		return
-	if target.is_dead or target.hp >= target.max_hp:
+	if heal_cd > 0.0 or dist > heal_range or target.is_dead:
 		return
 	if target.hp > target.max_hp * heal_threshold:
 		return
@@ -160,7 +145,5 @@ func _player() -> Node3D:
 
 
 func _face(dir: Vector3, delta: float) -> void:
-	if dir.length_squared() < 0.001:
-		return
 	var desired_yaw := atan2(-dir.x, -dir.z)
 	rotation.y = lerp_angle(rotation.y, desired_yaw, minf(10.0 * delta, 1.0))

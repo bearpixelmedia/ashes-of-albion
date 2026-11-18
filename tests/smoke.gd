@@ -1,7 +1,7 @@
 extends Node
 ## Headless verification of the Phase 0 loop.
 ## Run: godot --headless --path . res://tests/smoke.tscn
-## Prints SMOKKE-free "SMOKE_RESULT: PASS/FAIL" and exits nonzero on failure.
+## Prints "SMOKE_RESULT: PASS/FAIL" and exits nonzero on failure.
 
 var failures: Array[String] = []
 var total := 0
@@ -34,6 +34,15 @@ func _check(cond: bool, label: String) -> void:
 func _frames(n: int) -> void:
 	for i in n:
 		await get_tree().physics_frame
+
+
+## Back to the concept's starting champion after a test bends class, XP or ranks.
+func _reset_run_state(player, hud) -> void:
+	ClassKit.selected = "fighter"
+	Progression.reset()
+	SkillTreeData.reset_to_default()
+	SkillTreeData.apply_to(player)
+	hud.set_level(Progression.level)
 
 
 func _run() -> void:
@@ -722,9 +731,7 @@ func _run() -> void:
 			"the menu can also go back to the title screen")
 
 	# ============ Phase 6: fighter skill tree ============
-	Progression.reset()  # the kills above may have levelled the champion
-	SkillTreeData.reset_to_default()
-	SkillTreeData.apply_to(player)
+	_reset_run_state(player, hud)  # the kills above may have levelled the champion
 	var tree = load("res://scenes/skill_tree.tscn").instantiate()
 	add_child(tree)
 	await _frames(3)
@@ -895,18 +902,13 @@ func _run() -> void:
 	await _frames(2)
 
 	# baseline restored, scratch file removed
-	ClassKit.selected = "fighter"
-	Progression.reset()
-	SkillTreeData.reset_to_default()
-	SkillTreeData.apply_to(player)
+	_reset_run_state(player, hud)
 	AudioServer.set_bus_volume_db(0, 0.0)
 	SaveGame.erase()
 	_check(not FileAccess.file_exists(SaveGame.path), "the scratch save is cleaned up")
 
 	# ============ Phase 9: progression (XP, levels, rail unlock) ============
-	Progression.reset()
-	SkillTreeData.reset_to_default()
-	ClassKit.selected = "fighter"
+	_reset_run_state(player, hud)
 	_check(Progression.level == Progression.START_LEVEL and Progression.xp == 0,
 			"a fresh run starts at the concept's level 12")
 	_check(Progression.points_total() == 8,
@@ -946,10 +948,7 @@ func _run() -> void:
 	rail.queue_free()
 	await _frames(2)
 
-	Progression.reset()
-	SkillTreeData.reset_to_default()
-	SkillTreeData.apply_to(player)
-	hud.set_level(Progression.level)
+	_reset_run_state(player, hud)
 	SaveGame.erase()
 
 	# ============ Phase 10: the cleric companion ============
