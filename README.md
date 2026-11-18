@@ -23,6 +23,13 @@ concept (image 4).
 - World scene: **`res://scenes/main.tscn`** (loads directly with the last committed class; useful for debugging, defaults to the Fighter).
 - Standalone lineup view: run **`res://scenes/lineup.tscn`** (F6) for a clean concept view of the eight champions.
 - Headless verification: `godot --headless --path ashes-of-albion res://tests/smoke.tscn`
+- Browser build: re-export the Web preset with
+  `godot --headless --path . --export-release "Web" build/web/index.html` (Godot
+  4.3 export templates required), then serve it with `python3 tools/serve_web.py`
+  and open **http://localhost:3001**. The server defaults to the preview port
+  **3001** (`PORT=8080 python3 tools/serve_web.py` to change it) and sets the
+  `application/wasm` MIME type the engine needs. `build/` is gitignored, so
+  re-export after a pull.
 
 ## Controls
 
@@ -230,11 +237,13 @@ ashes-of-albion/
 │   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, arena clock, target frame with segmented flag bar, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
 ├── scripts/                 # title_screen (front-end loop), character_select (select + commit ClassKit.selected), player (fighter+ranger kits + Esc/Back flow), class_kit (8 archetypes, skills, selection), combat_flags (flag table + billboarded tag chips), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (incl. target frame + arena clock), main (wave loop + apply_class), town_layout
-└── tests/
-    ├── smoke.tscn/.gd       # 157-check headless suite: loop + class kits + lineup + character select + title screen (exit code 0/1, 900 s watchdog)
-    ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
-    ├── probe.gd             # camera placement probe
-    └── mesh_audit.gd        # null-mesh audit over title + main + character select (0 found of 285)
+├── tests/
+│   ├── smoke.tscn/.gd       # 180-check headless suite: loop + class kits + lineup + character select + title screen (exit code 0/1, 900 s watchdog)
+│   ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
+│   ├── probe.gd             # camera placement probe
+│   └── mesh_audit.gd        # null-mesh audit over title + main + character select (0 found of 318)
+└── tools/
+    └── serve_web.py         # static server for the exported web build (port 3001)
 ```
 
 ## Verification (headless, Godot 4.3-stable)
