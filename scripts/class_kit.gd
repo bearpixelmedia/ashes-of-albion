@@ -70,10 +70,11 @@ const ARCHETYPES: Array[Dictionary] = [
 ]
 
 ## Playable class kits: hotbar skill names per slot. Slots past the end of a
-## class's list stay locked on the HUD until that class is implemented.
+## class's list stay locked on the HUD until that class is implemented. The
+## third skill is the slot a class earns by clearing the arena (Progress).
 const SKILLS := {
-	"fighter": ["Cleave", "Second Wind"],
-	"ranger": ["Power Shot", "Tumble"],
+	"fighter": ["Cleave", "Second Wind", "Whirlwind"],
+	"ranger": ["Power Shot", "Tumble", "Volley"],
 }
 
 const FIGHTER := "fighter"

@@ -30,6 +30,17 @@ const BOLT_SCENE := preload("res://scenes/projectile.tscn")
 @export var wind_heal := 35.0
 @export var wind_stamina := 25.0
 @export var wind_cooldown := 18.0
+# Skill 3 - the slot each class earns by clearing the arena (Progress).
+# Fighter Whirlwind: a full-circle strike around the player.
+@export var whirlwind_damage := 35.0
+@export var whirlwind_range := 3.6
+@export var whirlwind_stamina_cost := 40.0
+@export var whirlwind_cooldown := 12.0
+# Ranger Volley: three arrows in a fan.
+@export var volley_damage := 20.0
+@export var volley_spread := 0.16
+@export var volley_stamina_cost := 35.0
+@export var volley_cooldown := 10.0
 # Ranger skill 1 - Power Shot: one long-range bolt.
 @export var power_shot_damage := 50.0
 @export var power_shot_poise := 30.0
@@ -57,6 +68,7 @@ var locked_target: Node3D = null
 var stagger_time := 0.0
 var skill1_cd := 0.0
 var skill2_cd := 0.0
+var skill3_cd := 0.0
 var combo_step := 0
 var combo_timer := 0.0
 var dash_time := 0.0
@@ -110,6 +122,7 @@ func _physics_process(delta: float) -> void:
 	_stamina_delay = maxf(_stamina_delay - delta, 0.0)
 	skill1_cd = maxf(skill1_cd - delta, 0.0)
 	skill2_cd = maxf(skill2_cd - delta, 0.0)
+	skill3_cd = maxf(skill3_cd - delta, 0.0)
 	stagger_time = maxf(stagger_time - delta, 0.0)
 	combo_timer = maxf(combo_timer - delta, 0.0)
 	evade_time = maxf(evade_time - delta, 0.0)
@@ -176,6 +189,8 @@ func _physics_process(delta: float) -> void:
 		use_skill_1()
 	if Input.is_action_just_pressed("hotbar_2"):
 		use_skill_2()
+	if Input.is_action_just_pressed("hotbar_3"):
+		use_skill_3()
 	if Input.is_action_just_pressed("lock_on"):
 		toggle_lock_on()
 
@@ -333,15 +348,49 @@ func use_skill_2() -> void:
 			Color(0.4, 0.95, 0.5))
 
 
+func use_skill_3() -> void:
+	## Slot 3, earned per class: the fighter's Whirlwind (a strike all the way
+	## around the player) or the ranger's Volley (a three-arrow fan). Stays
+	## inert until Progress unlocks it for this class.
+	if is_dead or stagger_time > 0.0 or skill3_cd > 0.0:
+		return
+	if not Progress.is_slot_unlocked(class_id):
+		return
+	if ClassKit.is_ranged(class_id):
+		if stamina < volley_stamina_cost:
+			return
+		stamina -= volley_stamina_cost
+		_stamina_delay = 1.2
+		skill3_cd = volley_cooldown
+		_swing_weapon(true)
+		for spread in [-volley_spread, 0.0, volley_spread]:
+			_shoot(volley_damage, 20.0, float(spread))
+		return
+	if stamina < whirlwind_stamina_cost:
+		return
+	stamina -= whirlwind_stamina_cost
+	_stamina_delay = 1.2
+	skill3_cd = whirlwind_cooldown
+	_swing_weapon(true)
+	for target in _arc_targets(whirlwind_range, -1.0):  # -1.0 dot: the whole circle
+		target.call("take_damage", whirlwind_damage, global_position)
+		var offset := Vector3(randf_range(-0.3, 0.3), 1.7, randf_range(-0.2, 0.2))
+		_spawn_damage_number(target.global_position + offset, int(whirlwind_damage),
+				Color(1.0, 0.7, 0.25))
+
+
 ## Fire one bolt from chest height: aims at the locked target when there is
 ## one, otherwise straight along the facing direction. Friendly to foes.
-func _shoot(dmg: float, poise: float) -> void:
+## `spread` fans the shot off the aim by that many radians around Y.
+func _shoot(dmg: float, poise: float, spread: float = 0.0) -> void:
 	var muzzle := global_position + Vector3(0, 0.5, 0)
 	var dir := -global_transform.basis.z
 	if locked_target != null and is_instance_valid(locked_target):
 		var aim: Vector3 = locked_target.global_position + Vector3(0, 0.4, 0) - muzzle
 		if aim.length() > 0.01:
 			dir = aim.normalized()
+	if not is_zero_approx(spread):
+		dir = dir.rotated(Vector3.UP, spread)
 	var bolt := BOLT_SCENE.instantiate()
 	var world: Node = get_tree().get_first_node_in_group("world")
 	if world == null:
@@ -357,6 +406,7 @@ func setup_class(id: String) -> void:
 	class_id = id
 	skill1_cd = 0.0
 	skill2_cd = 0.0
+	skill3_cd = 0.0
 	combo_step = 0
 	combo_timer = 0.0
 	dash_time = 0.0

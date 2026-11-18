@@ -22,6 +22,8 @@ var _starting := false
 @onready var preview_camera: Camera3D = %PreviewCamera
 @onready var enter_button: Button = %EnterWorld
 @onready var status_label: Label = %StatusLabel
+@onready var slot_progress: Label = %Slot1Progress
+@onready var slot_unlock: Label = %Slot1Unlock
 
 var _style_base: StyleBoxFlat
 var _style_hover: StyleBoxFlat
@@ -32,6 +34,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_styles()
 	_build_rows()
+	_refresh_card()
 	var resume := ClassKit.index_of(ClassKit.selected)
 	if resume >= 0:
 		selected_index = resume
@@ -102,6 +105,15 @@ func start_world() -> void:
 
 
 # --- construction ------------------------------------------------------------
+
+## The slot card carries the saved record: renown, the personal best run and
+## which classes have earned their third skill slot.
+func _refresh_card() -> void:
+	Progress.ensure_loaded()
+	slot_progress.text = "Renown %d    ·    Best run %s" % [Progress.renown, Progress.best_text()]
+	slot_unlock.text = Progress.unlock_summary()
+	var earned := not Progress.unlocked_classes().is_empty()
+	slot_unlock.add_theme_color_override("font_color", GOLD_BRIGHT if earned else DIM_TEXT)
 
 func _build_styles() -> void:
 	_style_base = _style(Color(0.07, 0.075, 0.11, 0.95), Color(0.5, 0.42, 0.22, 0.5), 1)

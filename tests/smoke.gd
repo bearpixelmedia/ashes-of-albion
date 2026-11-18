@@ -37,6 +37,10 @@ func _frames(n: int) -> void:
 
 
 func _run() -> void:
+	# Keep the persistent record out of the player's real save: this run starts
+	# from a clean slate and leaves none behind.
+	Progress.save_path = "user://smoke_progress.cfg"
+	Progress.forget()
 	main = load("res://scenes/main.tscn").instantiate()
 	add_child(main)
 	await _frames(6)
@@ -357,6 +361,10 @@ func _run() -> void:
 	# --- class kit on the HUD ---
 	_check(player.class_id == "fighter", "the player enters the world as the fighter")
 	_check(hud.class_label.text == "FIGHTER", "HUD shows the class name above the skill bar")
+	# Clearing the whole arena in Phase 2 now banks renown and earns the
+	# fighter's third slot, so reset the record to keep the locked baseline.
+	Progress.forget()
+	hud.set_class(ClassKit.by_id("fighter"))
 	_check(hud.slot_names[0].text == "Cleave", "hotbar slot 1 is named Cleave")
 	_check(hud.slot_names[1].text == "Second Wind", "hotbar slot 2 is named Second Wind")
 	var locked_ok := true
@@ -782,6 +790,108 @@ func _run() -> void:
 			"the run timer reads mm:ss")
 	await _frames(120)
 	_check(hud.timer_label.text != timer_text0, "the run timer counts up")
+
+	# ============ progress: renown, personal best, earned third slot ============
+
+	Progress.forget()  # the earlier phases killed foes; start the record clean
+	main.apply_class("fighter")
+	Progress.renown_for_kill()
+	Progress.renown_for_wave()
+	_check(Progress.renown == Progress.RENOWN_PER_KILL + Progress.RENOWN_PER_WAVE,
+			"renown adds up from kills and cleared waves")
+	_check(Progress.record_run(2, 9, 74.0), "the first arena run sets a personal best")
+	_check(not Progress.record_run(1, 40, 5.0), "a shorter run never replaces the best")
+	_check(Progress.best_waves == 2 and Progress.best_kills == 9,
+			"the best keeps the furthest run's waves and kills")
+	_check(not Progress.record_run(2, 9, 90.0), "a slower run on the same waves is not a best")
+	_check(Progress.record_run(2, 10, 61.0), "more kills on the same waves improves the best")
+	_check(is_equal_approx(Progress.best_time, 61.0), "the best keeps its clock")
+	_check(Progress.best_text() == "Wave 2 · 01:01", "the best run reads as wave + mm:ss")
+	_check(FileAccess.file_exists("user://smoke_progress.cfg"), "progress is written to user://")
+
+	# --- the third skill slot is earned per class ---
+	_check(Progress.unlock_slot("fighter"),
+			"clearing the arena unlocks the fighter's third slot")
+	_check(Progress.is_slot_unlocked("fighter") and not Progress.is_slot_unlocked("ranger"),
+			"the third-slot unlock is per class")
+	hud.set_class(ClassKit.by_id("fighter"))
+	_check(hud.slot_names[2].text == "Whirlwind" and hud.slot_keys[2].text == "3",
+			"the earned slot is named and keyed on the HUD")
+	main.apply_class("ranger")
+	_check(hud.slot_names[2].text == "locked", "an unearned slot stays locked on the HUD")
+	main.apply_class("fighter")
+	await _frames(2)
+
+	# the earned fighter skill works: a full circle, so it reaches behind you
+	player.rotation.y = 0.0
+	player.global_position = Vector3(0, 0.85, 8.0)
+	await _frames(3)
+	var whirl_foe = load("res://scenes/arena_warden.tscn").instantiate()
+	main.foe_container.add_child(whirl_foe)
+	whirl_foe.global_position = player.global_position + Vector3(0, 0, 1.6)
+	await _frames(4)
+	var whirl_hp: float = whirl_foe.hp
+	player.stamina = 100.0
+	player.skill3_cd = 0.0
+	player.use_skill_3()
+	await _frames(2)
+	_check(whirl_foe.hp <= whirl_hp - 34.0,
+			"the earned Whirlwind hits a foe behind the player")
+	_check(player.skill3_cd > 0.0, "Whirlwind starts its cooldown")
+	whirl_foe.queue_free()
+	await _frames(2)
+
+	# --- a relaunch reads the same record back from disk ---
+	Progress.relaunch()
+	_check(Progress.renown == Progress.RENOWN_PER_KILL + Progress.RENOWN_PER_WAVE,
+			"renown survives a relaunch")
+	_check(Progress.best_waves == 2 and is_equal_approx(Progress.best_time, 61.0),
+			"the personal best survives a relaunch")
+	_check(Progress.is_slot_unlocked("fighter") and not Progress.is_slot_unlocked("ranger"),
+			"the earned third slot survives a relaunch")
+
+	# --- clearing the whole arena banks the run and lights the slot ---
+	main.apply_class("ranger")
+	var renown_before: int = Progress.renown
+	main.wave = 3
+	main._wave_cleared()
+	await _frames(3)
+	_check(Progress.renown == renown_before + Progress.RENOWN_ARENA_CLEAR,
+			"clearing the arena pays its renown")
+	_check(Progress.best_waves == 3 and Progress.best_kills == main.kills,
+			"the cleared arena run becomes the personal best")
+	_check(Progress.is_slot_unlocked("ranger"),
+			"clearing as the ranger unlocks the ranger's slot")
+	_check(hud.slot_names[2].text == "Volley" and hud.slot_keys[2].text == "3",
+			"the arena clear lights up the earned slot")
+	_check(hud.results_body.text.findn("Third slot unlocked: Volley") >= 0,
+			"the results panel names the earned skill")
+	player.stamina = 100.0
+	player.skill3_cd = 0.0
+	player.use_skill_3()
+	await _frames(2)
+	_check(player.skill3_cd > 0.0 and player.stamina < 100.0,
+			"the ranger's earned Volley is usable")
+
+	# --- the character card carries the saved record ---
+	var card = load("res://scenes/character_select.tscn").instantiate()
+	add_child(card)
+	await _frames(4)
+	var card_progress: Label = card.get_node("LeftPanel/Slot1/Slot1Progress")
+	var card_unlock: Label = card.get_node("LeftPanel/Slot1/Slot1Unlock")
+	_check(card_progress.text.findn("Renown") >= 0
+			and card_progress.text.contains(str(Progress.renown)),
+			"the character card shows saved renown")
+	_check(card_progress.text.findn("Best run Wave 3") >= 0,
+			"the character card shows the personal best run")
+	_check(card_unlock.text.findn("Fighter") >= 0 and card_unlock.text.findn("Ranger") >= 0,
+			"the character card lists the classes with an earned slot")
+	card.queue_free()
+	await _frames(2)
+
+	# --- leave no save behind for the next run ---
+	Progress.forget()
+	Progress.save_path = Progress.SAVE_PATH
 
 	# --- report ---
 	if failures.is_empty():

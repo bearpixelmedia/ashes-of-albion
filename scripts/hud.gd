@@ -63,9 +63,11 @@ func set_class(definition: Dictionary) -> void:
 	else:
 		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    Q lock-on\n" \
 				+ "LMB attack combo    1 Cleave    2 Second Wind    Esc mouse"
-	var skills: Array = ClassKit.skill_names(str(definition.get("id", "")))
+	var class_id := str(definition.get("id", ""))
+	var skills: Array = ClassKit.skill_names(class_id)
 	for i in slot_names.size():
-		var unlocked := i < skills.size()
+		# Slots 1-2 come with the class; slot 3 is earned (progress save).
+		var unlocked := i < skills.size() and (i < 2 or Progress.is_slot_unlocked(class_id))
 		slot_names[i].text = str(skills[i]) if unlocked else "locked"
 		slot_names[i].modulate = Color(0.92, 0.9, 0.8, 1) if unlocked \
 				else Color(0.5, 0.52, 0.58, 0.85)
@@ -190,9 +192,12 @@ func _process(_delta: float) -> void:
 	reticle.visible = player.locked_target != null and is_instance_valid(player.locked_target)
 	_update_target_frame()
 
-	# Fighter skill cooldowns on hotbar slots 1 (Cleave) and 2 (Second Wind).
+	# Class skill cooldowns on hotbar slots 1, 2 and - once the arena has
+	# earned it - 3.
 	_update_slot(0, player.skill1_cd, "1")
 	_update_slot(1, player.skill2_cd, "2")
+	if Progress.is_slot_unlocked(str(player.class_id)):
+		_update_slot(2, player.skill3_cd, "3")
 
 	# Minimap: world (-60..60) maps onto the 184 px panel, north (-Z) up.
 	var scale_px := MINIMAP_SIZE / (WORLD_HALF * 2.0)

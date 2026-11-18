@@ -33,6 +33,7 @@ var _wave_pending := 0.0
 
 func _ready() -> void:
 	add_to_group("world")
+	Progress.ensure_loaded()  # renown, best run and earned slots from last time
 	arena_trigger.body_entered.connect(_on_arena_body_entered)
 	arena_trigger.body_exited.connect(_on_arena_body_exited)
 	dummy.defeated.connect(_on_foe_defeated.bind(dummy))
@@ -118,6 +119,7 @@ func _clear_spawned() -> void:
 
 func _on_foe_defeated(foe: Node) -> void:
 	kills += 1
+	Progress.renown_for_kill()
 	hud.set_score(kills, deaths)
 	if not _wave_active or zone != ZONE_ARENA:
 		return
@@ -128,10 +130,25 @@ func _on_foe_defeated(foe: Node) -> void:
 
 func _wave_cleared() -> void:
 	if wave >= MAX_WAVE:
-		hud.show_results("Arena Cleared", _results_body(), 6.0)
+		_arena_cleared()
 		return
+	Progress.renown_for_wave()
 	hud.show_results("Wave %d cleared" % wave, _results_body())
 	_wave_pending = WAVE_DELAY
+
+
+## Whole arena cleared: bank the run as a personal best, earn this class's
+## third skill slot and light it up on the hotbar.
+func _arena_cleared() -> void:
+	Progress.renown_for_arena()
+	Progress.record_run(wave, kills, arena_time)
+	var earned := Progress.unlock_slot(str(player.class_id))
+	hud.set_class(ClassKit.by_id(player.class_id))
+	var body := _results_body() + "\nRenown %d" % Progress.renown
+	if earned:
+		var skills: Array = ClassKit.skill_names(str(player.class_id))
+		body += "\nThird slot unlocked: %s" % str(skills[2])
+	hud.show_results("Arena Cleared", body, 6.0)
 
 
 func _spawn_wave() -> void:
@@ -177,8 +194,6 @@ func _results_body() -> String:
 	var seconds := int(arena_time) % 60
 	return "Kills %d    Deaths %d    Time %d:%02d" % [kills, deaths, minutes, seconds]
 
-
-# --- scoreboard ------------------------------------------------------------
 
 func _on_player_died() -> void:
 	deaths += 1
