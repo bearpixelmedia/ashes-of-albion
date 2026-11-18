@@ -94,7 +94,7 @@ layout_mode = 1
 offset_left = 40.0
 offset_top = 96.0
 offset_right = 360.0
-offset_bottom = 330.0
+offset_bottom = 348.0
 theme_override_constants/separation = 12
 
 [node name="Resume" type="Button" parent="Root/MenuPanel/Buttons"]
@@ -104,6 +104,18 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.97, 0.94, 0.85, 1)
 theme_override_font_sizes/font_size = 19
 text = "Resume"
+theme_override_styles/normal = SubResource("btn_base")
+theme_override_styles/hover = SubResource("btn_hover")
+theme_override_styles/pressed = SubResource("btn_hover")
+theme_override_styles/focus = SubResource("btn_hover")
+
+[node name="Skills" type="Button" parent="Root/MenuPanel/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 54)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.91, 0.82, 1)
+theme_override_font_sizes/font_size = 19
+text = "Skills"
 theme_override_styles/normal = SubResource("btn_base")
 theme_override_styles/hover = SubResource("btn_hover")
 theme_override_styles/pressed = SubResource("btn_hover")
@@ -136,9 +148,9 @@ theme_override_styles/focus = SubResource("btn_hover")
 [node name="Hint" type="Label" parent="Root/MenuPanel"]
 layout_mode = 1
 offset_left = 20.0
-offset_top = 348.0
+offset_top = 366.0
 offset_right = 380.0
-offset_bottom = 380.0
+offset_bottom = 398.0
 theme_override_colors/font_color = Color(0.62, 0.64, 0.7, 1)
 theme_override_font_sizes/font_size = 13
 text = "Esc resumes the run"

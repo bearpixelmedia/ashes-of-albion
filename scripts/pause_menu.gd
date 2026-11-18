@@ -3,6 +3,8 @@ extends CanvasLayer
 ## and frees the mouse; Resume drops you back in, the other buttons leave for
 ## the front end (character select or the title screen).
 
+signal skills_pressed
+
 const SELECT_SCENE := "res://scenes/character_select.tscn"
 const TITLE_SCENE := "res://scenes/title_screen.tscn"
 
@@ -14,12 +16,14 @@ var is_open := false
 
 @onready var root: Control = %Root
 @onready var resume_button: Button = %Resume
+@onready var skills_button: Button = %Skills
 @onready var character_button: Button = %CharacterSelect
 @onready var title_button: Button = %TitleScreen
 
 
 func _ready() -> void:
 	root.visible = false
+	skills_button.pressed.connect(func() -> void: skills_pressed.emit())
 
 
 func _unhandled_input(event: InputEvent) -> void:

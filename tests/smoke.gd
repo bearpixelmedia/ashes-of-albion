@@ -716,6 +716,69 @@ func _run() -> void:
 	_check(pause.requested_scene == "res://scenes/title_screen.tscn",
 			"the menu can also go back to the title screen")
 
+	# ============ Phase 6: fighter skill tree ============
+	SkillTreeData.reset_to_default()
+	SkillTreeData.apply_to(player)
+	var tree = load("res://scenes/skill_tree.tscn").instantiate()
+	add_child(tree)
+	await _frames(3)
+	tree.open(player)
+	_check(tree.is_open and tree.board.visible, "the skill tree board opens")
+	_check(get_tree().paused, "the world pauses behind the skill tree")
+	_check(tree.title_label.text == "Fighter Skill Tree", "the board names the fighter tree")
+	_check(tree.buttons.size() == 11, "the tree stages every node")
+	_check(SkillTreeData.rank_of("offensive") == 2, "Offensive Form starts at rank 2/3")
+	_check(SkillTreeData.rank_of("cleave") == 1 and SkillTreeData.rank_of("fortify") == 1,
+			"Cleave and Fortify start at rank 1/3")
+	_check(SkillTreeData.points_available() == 2, "two skill points are available")
+	_check(tree.points_label.text.findn("2") >= 0, "the points counter shows the pool")
+	_check(tree.orbs.get_child_count() == 2, "two gold orbs mark the available points")
+	_check(tree.rank_labels["cleave"].text == "Rank 1/3", "nodes carry rank pips")
+	_check(tree.rank_labels["whirlwind"].text == "Locked", "Whirlwind is locked")
+	_check(not SkillTreeData.can_rank("whirlwind"), "a locked node cannot be ranked")
+	_check(not SkillTreeData.can_rank("armor_break") and not SkillTreeData.can_rank("bulwark"),
+			"Armor Break and Bulwark are locked too")
+	_check(tree.rail_hint.text.findn("Level 25") >= 0,
+			"the Secondary Archetype rail gates at level 25")
+
+	# spending feeds the live kit
+	var cleave_before: float = player.cleave_damage
+	_check(tree.spend("cleave"), "a point can be spent on Cleave")
+	_check(SkillTreeData.rank_of("cleave") == 2, "Cleave reaches rank 2")
+	_check(absf(player.cleave_damage - (cleave_before + 6.0)) < 0.01,
+			"the rank feeds the live Cleave damage")
+	_check(SkillTreeData.points_available() == 1, "the pool drains by one")
+	_check(tree.rank_labels["cleave"].text == "Rank 2/3", "the rank pip updates")
+	var wind_before: float = player.wind_heal
+	_check(tree.spend("second_wind"), "Second Wind can be ranked")
+	_check(absf(player.wind_heal - (wind_before + 8.0)) < 0.01,
+			"the rank feeds the live Second Wind heal")
+	_check(SkillTreeData.points_available() == 0, "the pool is empty")
+	_check(not tree.spend("cleave"), "an empty pool blocks further ranks")
+	_check(SkillTreeData.rank_of("cleave") == 2, "a blocked spend changes nothing")
+	tree.reset_all()
+	_check(SkillTreeData.points_available() == 8, "Reset refunds every point")
+	_check(SkillTreeData.rank_of("offensive") == 0 and SkillTreeData.rank_of("cleave") == 0,
+			"Reset clears the ranks")
+	_check(absf(player.cleave_damage - 45.0) < 0.01, "Reset returns Cleave to its base damage")
+	_check(absf(player.wind_heal - 35.0) < 0.01, "Reset returns Second Wind to its base heal")
+	tree.close()
+	_check(not tree.is_open and not get_tree().paused, "closing the board unpauses the world")
+	tree.queue_free()
+	await _frames(2)
+
+	# pause-menu entry point
+	_check(main.pause_menu.skills_button != null, "the pause menu offers the skill tree")
+	main.pause_menu.open()
+	main.pause_menu.skills_pressed.emit()
+	_check(main.skill_tree.is_open, "Skills opens the tree from the pause menu")
+	_check(not main.pause_menu.is_open, "the pause menu steps aside")
+	main.skill_tree.close()
+	await _frames(2)
+	_check(not get_tree().paused, "closing from the menu unpauses the world")
+	SkillTreeData.reset_to_default()
+	SkillTreeData.apply_to(player)
+
 	# --- report ---
 	if failures.is_empty():
 		print("SMOKE_RESULT: PASS — %d/%d" % [total, total])

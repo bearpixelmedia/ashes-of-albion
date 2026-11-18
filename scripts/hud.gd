@@ -128,6 +128,10 @@ func on_player_damaged(_hp: float, _max_hp: float, _poise: float) -> void:
 func _process(_delta: float) -> void:
 	if player == null:
 		return
+	# Skill-tree ranks raise the ceilings, so the bars follow the player.
+	hp_bar.max_value = player.max_hp
+	stamina_bar.max_value = player.max_stamina
+	poise_bar.max_value = player.max_poise
 	hp_bar.value = player.hp
 	stamina_bar.value = player.stamina
 	poise_bar.value = player.poise

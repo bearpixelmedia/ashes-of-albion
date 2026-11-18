@@ -36,7 +36,7 @@ square with the loop reset and your score preserved.
 | `2` | **Fighter:** **Second Wind** — heals 35 HP + 25 stamina, 18 s CD · **Ranger:** **Tumble** — evade dash with brief i-frames, 7 s CD |
 | `3`–`5` | Locked slots (`–`, dimmed) until their classes exist |
 | `Enter` | On the title and select screens: activate the focused entry (Enter World, Character Select, …) |
-| `Esc` | **In the world:** open / close the pause menu (Resume · Character Select · Title Screen). **On the title/select screens:** close settings / return to the title screen. |
+| `Esc` | **In the world:** open / close the pause menu (Resume · **Skills** · Character Select · Title Screen); the skill tree closes back with `Esc`. **On the title/select screens:** close settings / return to the title screen. |
 
 ## Front end
 
@@ -129,6 +129,42 @@ The Fighter is the only playable class in this prototype; the kit lives in
 The HUD labels the bar **FIGHTER**, names each unlocked slot, shows live
 cooldown countdowns on `1`/`2`, and locks everything the class hasn't earned.
 
+## Fighter skill tree (concept image 1)
+
+`res://scenes/skill_tree.tscn` is the board from the concept: **Swordcraft**
+splits into **Offensive Form** and **Defensive Form**, and each branch carries
+ranked nodes. Open it with **Skills** in the in-world pause menu (`Esc`); the
+world pauses behind the board, `Esc` or **Back** returns, and every rank is
+pushed onto the live kit immediately. Running the scene directly (F6) opens the
+board for inspection.
+
+| Node | Ranks | Effect |
+|---|---|---|
+| Swordcraft | — | root of the tree |
+| Offensive Form | 3 | +3 Cleave damage per rank |
+| Cleave | 3 | +6 Cleave damage per rank |
+| Sundering Strike | 3 | +0.25 m Cleave reach per rank |
+| Whirlwind | **locked** | not in this build |
+| Armor Break | **locked** | not in this build |
+| Defensive Form | 3 | +4 Second Wind healing per rank |
+| Fortify | 3 | +5 max health per rank |
+| Guard Stance | 3 | +3 max poise per rank |
+| Second Wind | 3 | +8 Second Wind healing per rank |
+| Bulwark | **locked** | not in this build |
+
+- **Points:** 8 total, with the concept's six ranks already committed
+  (Offensive Form 2, Defensive Form 1, Cleave 1, Sundering Strike 1, Fortify 1)
+  and **two to spend** — the two gold orbs beside the counter. Clicking a node
+  spends one; a full pool or a maxed node is refused with a line of feedback.
+- **Reset** refunds every point and returns the kit to its base numbers
+  (Cleave 45, Second Wind 35). Ranks live in `SkillTreeData` as statics, so they
+  survive scene changes the same way the class selection does.
+- The **Secondary Archetype** rail is drawn and gated: "Unlocks at Level 25".
+- Fortify and Guard Stance raise the health/poise ceilings, and the HUD bars
+  follow the player's maxima.
+- Cleave and Second Wind are the only ranks with skills behind them today; the
+  other nodes hold the bonuses for skills still to be built.
+
 ## Character select (concept image 3)
 
 `res://scenes/character_select.tscn` is the picker behind the title screen's
@@ -213,7 +249,8 @@ ashes-of-albion/
 ├── scenes/
 │   ├── title_screen.tscn    # boot screen: wordmark, four-entry menu, settings panel (volume + fullscreen)
 │   ├── character_select.tscn # picker: slot card, dais preview (SubViewport), 8-archetype picker, action bar
-│   ├── pause_menu.tscn      # in-world Esc menu: Resume / Character Select / Title Screen
+│   ├── pause_menu.tscn      # in-world Esc menu: Resume / Skills / Character Select / Title Screen
+│   ├── skill_tree.tscn      # Fighter Skill Tree board: Swordcraft branches, ranks, locks, Secondary Archetype rail
 │   ├── main.tscn            # world env (dusk sky+fog), moon light, ground, arena trigger, ArenaFoes, ChampionsRow instance
 │   ├── player.tscn          # CharacterBody3D + SpringArm3D/Camera3D + sword (bow built at runtime for the ranger)
 │   ├── training_dummy.tscn  # damageable + billboard health bar + defeat/reset
@@ -225,9 +262,9 @@ ashes-of-albion/
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
 │   ├── hud.tscn             # bars, class label + 5 skill slots, class-aware controls hint, scoreboard, wave counter, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
+├── scripts/                 # title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), skill_tree_data (nodes, ranks, kit effects), skill_tree (board + point spending), skill_icon + tree_links (drawn art), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud, main (wave loop + apply_class), town_layout
 └── tests/
-    ├── smoke.tscn/.gd       # 168-check headless suite: loop + class kits + lineup + select + front end (exit code 0/1, 900 s watchdog)
+    ├── smoke.tscn/.gd       # 201-check headless suite: loop + class kits + lineup + select + front end + skill tree (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
     ├── probe.gd             # camera placement probe
     └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 275)
@@ -237,13 +274,14 @@ ashes-of-albion/
 
 - `--import`: clean, no parse errors.
 - `tests/mesh_audit.gd` (main + character select): **335 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 168/168 checks**, exit code 0
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 201/201 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
   - Phase 3 (32): the player enters as the fighter; HUD shows `FIGHTER` above the bar with slots named `Cleave`/`Second Wind` and `3–5` locked (`–`); **Cleave hits two foes in one arc** (45 dmg each), enters its 6 s cooldown, dims HUD slot 1, is blocked by stamina without starting its cooldown, and damages the warden on lock-on; **Second Wind** heals 35 HP, starts its 18 s cooldown, shows the countdown on slot 2 and is blocked while recharging; the **weapon combo** chains 25 → 25 → 40 and resets after the 1.2 s window; **Champions' Row** stages all eight champions in concept-image order with readable nameplates, built weapon props, distinct body colours, a collidable plinth, the fighter's greatsword, the summoner's spectral ally and the tank's tower shield; the standalone `lineup.tscn` stages the same eight with its own camera.
   - Phase 4 (34): the select screen lists all eight archetypes, opens on the Fighter with its dais figure and preview camera; the `Rowan Vale` slot card reads as in the concept; picking the Bard swaps the preview and gates Enter World with an explanatory status; picking the Ranger re-enables it and `commit_selection()` writes `ClassKit.selected`; **the world swaps to the ranger live** (HUD `RANGER`, slots `Power Shot`/`Tumble`, bow-controls hint, sword sheathed, bow equipped); **a 25 dmg arrow from 8 m — beyond the 3.2 m melee range — damages the warden**; **Power Shot** costs stamina, starts its 5 s cooldown, lands 50 dmg and dims slot 1; **Tumble** starts its cooldown, grants the evade window and dashes the ranger ≥1.5 m forward; switching back restores the fighter kit, sword and hint; **a freshly instanced world boots as the committed ranger** (class id, HUD label, skill names).
   - Phase 5 (20): the project boots on the title screen; the menu offers all four entries and names the last committed champion; Enter World / Character Select request `main.tscn` / `character_select.tscn`; Settings opens and closes, and its volume slider drives the master audio bus; the picker's Back button is live and returns to the title; the world's pause menu opens over the scene, pauses the tree, resumes and unpauses, the `Esc` key opens it, and its Character Select / Title Screen entries unpause the run and request the right scene.
+  - Phase 6 (33): the board opens over the paused world with all eleven nodes staged; the concept's starting ranks (Offensive Form 2/3, Defensive Form 1/3, Cleave 1/3, Sundering Strike 1/3, Fortify 1/3) leave two points and two gold orbs; pips read `Rank 1/3`; Whirlwind, Armor Break and Bulwark read `Locked` and refuse ranks; the Secondary Archetype rail reads `Level 25`; spending on Cleave raises its live damage by 6 and spending on Second Wind raises its live heal by 8, then the empty pool blocks further ranks; **Reset** refunds all eight points and returns Cleave to 45 and Second Wind to 35; closing unpauses; and the pause menu's **Skills** button opens the board.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title screen `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
@@ -294,7 +332,7 @@ does not occur with a real renderer.
 
 ## Next recommended milestone
 
-**Phase 6 — the Mage (third playable class), then encounter depth:** `ClassKit`
+**Phase 7 — the Mage (third playable class), then the social screens:** `ClassKit`
 and `player.setup_class()` already branch by data (ranged flag + skill names),
 and `projectile.tscn`'s friendly mode gives the Mage an instant bolt; its
 identity would come from an area skill (a ground-target nova reusing
