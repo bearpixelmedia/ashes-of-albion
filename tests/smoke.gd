@@ -1015,6 +1015,125 @@ func _run() -> void:
 	cleric.global_position = Vector3(2.4, 0.0, 9.4)
 	player.global_position = Vector3(0, 0.85, 8.0)
 
+	# ============ Phase 11: mobile touch controls ============
+	# The pad is fed synthetic touches through its own _input: a headless run
+	# rescales Input.parse_input_event screen coordinates through the window ->
+	# viewport transform, so injected taps cannot address pad coordinates.
+	var touch = main.touch_controls
+	_check(touch != null, "the world stages a touch control layer")
+	_check(not touch.enabled and not touch.visible,
+			"touch controls stay hidden on a keyboard-and-mouse desktop")
+	touch.size = Vector2(1600.0, 900.0)
+	touch.set_enabled(true)
+	touch.accept_mouse = false  # the suite feeds real touch events
+	await _frames(2)
+	_check(touch.visible and touch.enabled, "the touch layer can be switched on")
+	_check(touch.buttons.size() == 6, "the pad stages six action buttons")
+	_check(touch.button("attack")["center"].x > 1200.0,
+			"the action buttons sit in the right thumb zone")
+	_check(touch.button("menu")["center"].y < 300.0, "the pause button sits top-right")
+
+	hud.set_touch_mode(true)
+	hud.set_class(ClassKit.by_id(player.class_id))
+	_check(hud.hint_label.text.findn("stick") >= 0, "the HUD hint swaps to touch wording")
+	_check(hud.hint_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER,
+			"the touch hint moves to the middle of the screen")
+
+	# a tap on ATK swings the fighter's weapon
+	player.hp = player.max_hp
+	player.stagger_time = 0.0
+	player.locked_target = null
+	Input.action_release("attack")  # no leaked press from an earlier phase
+	player._attack_cd = 0.0
+	var atk_tap := InputEventScreenTouch.new()
+	atk_tap.index = 0
+	atk_tap.position = touch.button("attack")["center"]
+	atk_tap.pressed = true
+	touch._input(atk_tap)
+	await _frames(3)
+	_check(player._attack_cd > 0.0, "tapping the ATK pad button attacks")
+	var atk_lift := InputEventScreenTouch.new()
+	atk_lift.index = 0
+	atk_lift.position = atk_tap.position
+	touch._input(atk_lift)
+	await _frames(2)
+
+	# the floating stick: press, drag, release
+	var stick_start: Vector3 = player.global_position
+	var stick_down := InputEventScreenTouch.new()
+	stick_down.index = 1
+	stick_down.position = Vector2(240.0, 640.0)
+	stick_down.pressed = true
+	touch._input(stick_down)
+	await _frames(1)
+	var stick_pull := InputEventScreenDrag.new()
+	stick_pull.index = 1
+	stick_pull.position = Vector2(240.0, 520.0)
+	stick_pull.relative = Vector2(0.0, -120.0)
+	touch._input(stick_pull)
+	await _frames(2)
+	_check(player.touch_move.y < -0.6, "the stick feeds an analog move vector")
+	_check(player.touch_sprint, "a full stick push asks for a sprint")
+	await _frames(20)
+	_check(player.global_position.distance_to(stick_start) > 0.5,
+			"the stick moves the champion")
+	var stick_up := InputEventScreenTouch.new()
+	stick_up.index = 1
+	stick_up.position = stick_pull.position
+	touch._input(stick_up)
+	await _frames(2)
+	_check(player.touch_move == Vector2.ZERO and not player.touch_sprint,
+			"lifting the thumb stops the movement input")
+
+	# drag-to-look on the right half
+	player.locked_target = null
+	var yaw_before: float = player.rotation.y
+	var look_down := InputEventScreenTouch.new()
+	look_down.index = 2
+	look_down.position = Vector2(1000.0, 420.0)
+	look_down.pressed = true
+	touch._input(look_down)
+	await _frames(1)
+	var look_pull := InputEventScreenDrag.new()
+	look_pull.index = 2
+	look_pull.position = Vector2(1120.0, 420.0)
+	look_pull.relative = Vector2(120.0, 0.0)
+	touch._input(look_pull)
+	await _frames(2)
+	_check(absf(player.rotation.y - yaw_before) > 0.2,
+			"a right-screen drag turns the camera")
+
+	# JUMP and MENU
+	player.global_position = Vector3(0, 0.85, 6)
+	player.velocity = Vector3.ZERO
+	await _frames(8)
+	var jump_tap := InputEventScreenTouch.new()
+	jump_tap.index = 3
+	jump_tap.position = touch.button("jump")["center"]
+	jump_tap.pressed = true
+	touch._input(jump_tap)
+	await _frames(3)
+	_check(player.velocity.y > 0.5 or player.global_position.y > 0.95,
+			"the JUMP button lifts the champion")
+	if main.pause_menu.is_open:
+		main.pause_menu.close()
+	var menu_tap := InputEventScreenTouch.new()
+	menu_tap.index = 4
+	menu_tap.position = touch.button("menu")["center"]
+	menu_tap.pressed = true
+	touch._input(menu_tap)
+	await _frames(2)
+	_check(main.pause_menu.is_open, "the MENU button opens the pause menu")
+	main.pause_menu.close()
+	await _frames(2)
+
+	hud.set_touch_mode(false)
+	hud.set_class(ClassKit.by_id(player.class_id))
+	touch.set_enabled(false)
+	_check(hud.hint_label.text.findn("WASD") >= 0,
+			"the keyboard hint returns on a desktop")
+	_check(not touch.visible, "the pad hides again when it is switched off")
+
 	# --- report ---
 	if failures.is_empty():
 		print("SMOKE_RESULT: PASS — %d/%d" % [total, total])

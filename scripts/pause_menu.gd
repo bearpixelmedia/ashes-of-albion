@@ -5,6 +5,7 @@ extends CanvasLayer
 
 signal skills_pressed
 
+const TOUCH_CONTROLS := preload("res://scripts/touch_controls.gd")
 const SELECT_SCENE := "res://scenes/character_select.tscn"
 const TITLE_SCENE := "res://scenes/title_screen.tscn"
 
@@ -19,11 +20,14 @@ var is_open := false
 @onready var skills_button: Button = %Skills
 @onready var character_button: Button = %CharacterSelect
 @onready var title_button: Button = %TitleScreen
+@onready var hint: Label = %Hint
 
 
 func _ready() -> void:
 	root.visible = false
 	skills_button.pressed.connect(func() -> void: skills_pressed.emit())
+	if TOUCH_CONTROLS.is_available():
+		hint.text = "Tap Resume to continue"  # there is no Esc on a phone
 
 
 func _unhandled_input(event: InputEvent) -> void:

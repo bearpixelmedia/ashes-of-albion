@@ -8,12 +8,14 @@ signal damaged(hp: float, max_hp: float, poise: float)
 signal died
 
 const BOLT_SCENE := preload("res://scenes/projectile.tscn")
+const TOUCH_CONTROLS := preload("res://scripts/touch_controls.gd")
 
 @export var class_id := "fighter"  # ClassKit id; set from the character-select screen
 @export var move_speed := 5.0
 @export var sprint_speed := 8.0
 @export var jump_velocity := 4.5
 @export var mouse_sensitivity := 0.0025
+@export var touch_sensitivity := 0.006  # radians per pixel of finger drag
 @export var attack_damage := 25.0
 @export var attack_range := 3.2
 @export var attack_cooldown := 0.5
@@ -68,6 +70,11 @@ var _attack_cd := 0.0
 var _stamina_delay := 0.0
 var _bow: Node3D = null
 var camera_enabled := true
+## Virtual input from scripts/touch_controls.gd. Desktop play leaves these
+## empty, so the keyboard and mouse paths behave exactly as before.
+var touch_move := Vector2.ZERO
+var touch_sprint := false
+var touch_jump := false
 var _skip_attack_once := false  # the click that recaptures the mouse must not also swing
 var _respawn_timer := 0.0
 var _spawn_position := Vector3.ZERO
@@ -81,7 +88,10 @@ func _ready() -> void:
 	poise = max_poise
 	add_to_group("player")
 	_spawn_position = global_position
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# A touch device has no pointer to lock (and mobile browsers refuse the
+	# request without a gesture): the pad drives the camera instead.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if TOUCH_CONTROLS.is_available() \
+			else Input.MOUSE_MODE_CAPTURED
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -93,7 +103,20 @@ func _unhandled_input(event: InputEvent) -> void:
 	# owns mouse capture while it is open.
 
 
+## Drag-to-look for the touch pad: the same yaw and pitch the mouse drives,
+## scaled for a finger instead of a mouse.
+func look(relative: Vector2) -> void:
+	if not camera_enabled:
+		return
+	rotate_y(-relative.x * touch_sensitivity)
+	spring_arm.rotation.x = clampf(
+			spring_arm.rotation.x - relative.y * touch_sensitivity, -1.1, 0.5)
+
+
 func _physics_process(delta: float) -> void:
+	# Touch buttons are edge-triggered: one press, one jump.
+	var jump_pressed := Input.is_action_just_pressed("jump") or touch_jump
+	touch_jump = false
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
 	_stamina_delay = maxf(_stamina_delay - delta, 0.0)
 	skill1_cd = maxf(skill1_cd - delta, 0.0)
@@ -118,7 +141,7 @@ func _physics_process(delta: float) -> void:
 	if is_dead:
 		_respawn_timer -= delta
 		_brake(delta)
-		_apply_gravity(delta, false)
+		_apply_gravity(delta, false, jump_pressed)
 		move_and_slide()
 		if _respawn_timer <= 0.0:
 			respawn()
@@ -127,21 +150,26 @@ func _physics_process(delta: float) -> void:
 	if stagger_time > 0.0:
 		# Staggered: movement, attacks and skills are locked out briefly.
 		_brake(delta)
-		_apply_gravity(delta, false)
+		_apply_gravity(delta, false, jump_pressed)
 		move_and_slide()
 		return
 
 	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
+	if touch_move != Vector2.ZERO:
+		input_vec = touch_move  # the stick owns movement while it is held
+	var strength := minf(input_vec.length(), 1.0)  # analog: half a stick = half speed
+	var direction := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized() \
+			* strength
 
 	if dash_time > 0.0:
 		# Tumble: a committed evade dash along the facing direction.
 		velocity.x = dash_dir.x * tumble_speed
 		velocity.z = dash_dir.z * tumble_speed
-		_apply_gravity(delta, false)
+		_apply_gravity(delta, false, jump_pressed)
 		move_and_slide()
 	else:
-		var sprinting := Input.is_action_pressed("sprint") and input_vec != Vector2.ZERO and stamina > 0.0
+		var sprinting := (Input.is_action_pressed("sprint") or touch_sprint) \
+				and input_vec != Vector2.ZERO and stamina > 0.0
 		var speed := sprint_speed if sprinting else move_speed
 		if sprinting:
 			stamina = maxf(stamina - 18.0 * delta, 0.0)
@@ -152,7 +180,7 @@ func _physics_process(delta: float) -> void:
 		var target_vel := direction * speed
 		velocity.x = lerpf(velocity.x, target_vel.x, minf(12.0 * delta, 1.0))
 		velocity.z = lerpf(velocity.z, target_vel.z, minf(12.0 * delta, 1.0))
-		_apply_gravity(delta, true)
+		_apply_gravity(delta, true, jump_pressed)
 		move_and_slide()
 
 	if Input.is_action_just_pressed("attack"):
@@ -168,10 +196,10 @@ func _physics_process(delta: float) -> void:
 		toggle_lock_on()
 
 
-func _apply_gravity(delta: float, allow_jump: bool) -> void:
+func _apply_gravity(delta: float, allow_jump: bool, jump_pressed: bool = false) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-	elif allow_jump and Input.is_action_just_pressed("jump"):
+	elif allow_jump and jump_pressed:
 		velocity.y = jump_velocity
 
 

@@ -11,6 +11,7 @@ const WAVE_DELAY := 2.0
 const HARRIER_SCENE := preload("res://scenes/harrier.tscn")
 const BULWARK_SCENE := preload("res://scenes/bulwark.tscn")
 const WARDEN_SCENE := preload("res://scenes/arena_warden.tscn")
+const TOUCH_CONTROLS := preload("res://scripts/touch_controls.gd")
 
 @onready var player = $Player
 @onready var companion = $Companion
@@ -21,6 +22,7 @@ const WARDEN_SCENE := preload("res://scenes/arena_warden.tscn")
 @onready var foe_container: Node3D = $ArenaFoes
 @onready var pause_menu = $PauseMenu
 @onready var skill_tree = $SkillTree
+var touch_controls = null  # the mobile pad: staged always, shown on touch devices
 
 var zone := ZONE_SQUARE
 var kills := 0
@@ -48,6 +50,8 @@ func _ready() -> void:
 	SkillTreeData.apply_to(player)  # ranks earned in the fighter's tree
 	pause_menu.skills_pressed.connect(_on_skills_pressed)
 	skill_tree.closed.connect(_on_skill_tree_closed)
+	_spawn_touch_controls()
+	hud.set_touch_mode(touch_controls.enabled)
 	hud.set_score(kills, deaths)
 	hud.set_zone(zone)
 	hud.set_wave(0, MAX_WAVE)
@@ -56,6 +60,15 @@ func _ready() -> void:
 	hud.set_companion(companion)
 	dummy.reset()
 	warden.reset()
+
+
+## The touch pad shares the HUD's CanvasLayer and sits above it, so its stick
+## and buttons draw over the bars and hotbar. Hidden on keyboard-and-mouse.
+func _spawn_touch_controls() -> void:
+	touch_controls = TOUCH_CONTROLS.new()
+	touch_controls.name = "TouchControls"
+	$UI.add_child(touch_controls)
+	touch_controls.bind(player, pause_menu)
 
 
 ## Swap classes at runtime (used by the character-select flow and tests).

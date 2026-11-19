@@ -40,6 +40,61 @@ square with the loop reset and your score preserved.
 | `Enter` | On the title and select screens: activate the focused entry (Enter World, Character Select, …) |
 | `Esc` | **In the world:** open / close the pause menu (Resume · **Skills** · Character Select · Title Screen); the skill tree closes back with `Esc`. **On the title/select screens:** close settings / return to the title screen. |
 
+## Mobile / touch
+
+The build plays on a phone or tablet with no keyboard. `scripts/touch_controls.gd`
+lays a pad over the HUD as soon as the game runs on a touchscreen
+(`DisplayServer.is_touchscreen_available()`, or a `mobile` / `web_android` /
+`web_ios` build); start it with `--touch` to try the layout on a desktop.
+
+| Touch | Action |
+|---|---|
+| Left half, drag | **Floating stick** — appears under the thumb; a full push sprints (the keyboard's `Shift`) |
+| Right side, drag | Orbit the camera (yaw and pitch), the mouse's job on desktop |
+| `ATK` | Basic attack / bow shot (the `LMB` combo) |
+| `1` / `2` | Hotbar skills — the class's skill names sit under the numbers and the cooldown counts down on the button itself |
+| `LOCK` | Lock on / off (`Q`) |
+| `JUMP` | Jump (`Space`) |
+| `MENU` (top-right) | Opens the pause menu, which is otherwise `Esc`-only |
+
+- Every pointer is tracked by its own touch index, so moving, looking and attacking
+  at the same time all work. The pad is hidden on keyboard-and-mouse play and
+  ignores the mouse on a touchscreen (the engine re-emits mouse events from taps).
+- The buttons are drawn in `_draw` — no theme assets — in the same gold-on-parchment
+  language as the rest of the HUD: they light up while held, dim while a skill
+  recharges and show the remaining seconds.
+- The HUD hint swaps to thumb wording and moves up to the middle of the screen, so
+  the bottom corners belong to the pad; the pause menu's `Esc resumes` line becomes
+  `Tap Resume to continue`.
+- Movement is analog while the stick is held (half a stick = half speed), and the pad
+  releases itself when the run pauses, so opening a menu never leaves the champion
+  walking. `look()` on `player.gd` is the drag-to-look entry point.
+- The front-end menus are ordinary `Button`s, so title, character select, pause and
+  the skill tree all take taps directly. The 1600×900 composition is letterboxed on a
+  16:9 phone rather than stretched.
+
+**Android build.** `export_presets.cfg` carries an **Android** preset beside the
+**Web** one: landscape (`display/window/handheld/orientation=0`, the engine
+default, stated explicitly because the touch layout assumes it), arm64-v8a only,
+package `org.bearpixelmedia.ashes_of_albion`, version code 1 / name "1.0". Every
+other option is left at its 4.3 default — the exporter fills unset options from
+the platform — so the block only records the choices that were actually made
+(min SDK 21 and target SDK 34 come from the template). It exports the prebuilt
+template rather than a Gradle build, so a release export needs the 4.3 export
+templates and a keystore registered under **Editor Settings → Export → Android**:
+
+```sh
+godot --headless --path . --export-release "Android" build/ashes-of-albion.apk
+```
+
+`rendering/textures/vram_compression/import_etc2_astc=true` in `project.godot` is
+not optional in 4.3: the Android exporter refuses to export while ETC2/ASTC
+import is off, and reports it as an empty "configuration errors" message with no
+detail if the setting is removed. The Android templates always ship both
+ETC2/ASTC and S3TC/BPTC, so the preset needs no texture-format option of its own.
+The prototype has no image textures yet, so today the setting only satisfies that
+gate; when art lands it also makes textures import in a format mobile GPUs take.
+
 ## Front end
 
 The concept set has no title-screen piece, so **`res://scenes/title_screen.tscn`**
@@ -337,6 +392,7 @@ that reason).
 ```
 ashes-of-albion/
 ├── project.godot            # 13 input actions (WASD/mouse + 5 hotbar), GL Compatibility, boot scene = title screen
+├── export_presets.cfg       # Web (runnable) + Android: landscape, arm64-v8a, package + version
 ├── shaders/cel.gdshader     # 3-tone cel ramp + ambient floor (dusk-readable)
 ├── materials/               # 15 cel materials (slate, timber, 4 faction cloths, bars…)
 ├── scenes/
@@ -356,9 +412,9 @@ ashes-of-albion/
 │   ├── archetype_figure.tscn# one champion figure (built at runtime by archetype_figure.gd)
 │   ├── hud.tscn             # party frames, Combatant objective bar (segments + timer), icon hotbar, stat bars, scoreboard, results panel, minimap, reticle, damage flash
 │   └── props/               # market_stall, banner, torch, building (reused by town_layout)
-├── scripts/                 # progression (XP, levels, points), save_game (user:// profile), title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), skill_tree_data (nodes, ranks, kit effects), skill_tree (board + point spending), skill_icon + tree_links (drawn art), nameplate (ally/combatant/corrupted faction tags), companion (recruitable cleric: follow, heal, down), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (party frames + objective bar + icon hotbar), main (wave loop + apply_class), town_layout
+├── scripts/                 # progression (XP, levels, points), save_game (user:// profile), title_screen (front door + settings), heraldic_crest (drawn tree-of-life emblem), select_hall (cathedral backdrop for the dais), skill_tree_data (nodes, ranks, kit effects), skill_tree (board + point spending), skill_icon + tree_links (drawn art), nameplate (ally/combatant/corrupted faction tags), companion (recruitable cleric: follow, heal, down), pause_menu (in-world Esc menu + pause), character_select (commit ClassKit.selected), player (fighter+ranger kits), class_kit (8 archetypes, skills, selection), lineup + archetype_figure, training_dummy, foe (3 variants), projectile, hud (party frames + objective bar + icon hotbar), touch_controls (mobile pad: stick, look drag, action buttons), main (wave loop + apply_class), town_layout
 └── tests/
-    ├── smoke.tscn/.gd       # 271-check headless suite: loop + class kits + lineup + select + front end + skill tree + HUD + persistence + progression + companion (exit code 0/1, 900 s watchdog)
+    ├── smoke.tscn/.gd       # 289-check headless suite: loop + class kits + lineup + select + front end + skill tree + HUD + persistence + progression + companion + touch pad (exit code 0/1, 900 s watchdog)
     ├── probe_harrier.tscn/.gd  # ranged-duel diagnostic (state, distance, bolt count, HP trace)
     ├── probe.gd             # camera placement probe
     └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 339)
@@ -368,7 +424,7 @@ ashes-of-albion/
 
 - `--import`: clean, no parse errors.
 - `tests/mesh_audit.gd` (main + character select): **339 mesh instances, 0 null meshes**.
-- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 271/271 checks**, exit code 0
+- `tests/smoke.tscn`: **SMOKE_RESULT: PASS — 289/289 checks**, exit code 0
   (900 s watchdog reports FAIL + exit 1 if the run ever stalls).
   - Phase 0/1 (42): spawn zone, camera behind + looking at player `(0, 2.64, 4.01)` / dot `1.0`, WASD movement, mouse camera yaw, arena transition + opponent resets, lock-on target + reticle, cleave damage/cooldown/stamina, basic attack damage/defeat/kill counter/scoreboard, warden strike damaging HP and poise, HUD damage flash, poise-break stagger and recovery, lock-on switching targets, player death, death counter, respawn in the square with full health, zone/opponent reset on return, score preserved, controls preserved after reset.
   - Phase 2 (40): loop restarts at wave 1 on re-entry; wave-clear results panel appears with the right title and run summary; wave 2 spawns exactly the harrier + bulwark and the panel clears; wave counter follows each spawn; bulwark blocks 75 % of frontal damage and drains guard; an attack from behind bypasses the shield; an empty guard breaks the stance (`GUARD_BREAK`) and takes full damage; guard recovers and refills; the bulwark topples on defeat; **the harrier's bolt damages the player from range**; wave 3 spawns three foes; clearing it reports `Arena Cleared`; no wave 4 spawns afterwards; leaving the arena clears spawned foes, resets the wave counter, closes the panel, hides the wave label and resets the placed opponents.
@@ -380,6 +436,14 @@ ashes-of-albion/
   - Phase 8 (16): the run writes a save file; champion class, level, experience, secondary archetype, skill-tree ranks and the audio setting all survive a relaunch; a missing file reports no data; **the title screen restores the saved champion, level and name on boot**; the picker's slot card shows the persisted level and committing a champion writes the save; spending a skill point writes the new rank; and the scratch save is cleaned up.
   - Phase 9 (19): a fresh run starts at the concept's level 12 with its eight-point pool; a kill awards experience and a kill can complete a level; levels grant skill points and the tree pool grows by the extra point; the kill path banks XP and the HUD readout follows; the Secondary Archetype rail is locked below 25 (padlock, `Level 25` hint, refuses a pick), opens at 25 with all eight archetypes, remembers the choice and writes it to the save.
   - Phase 10 (16): the square stages the cleric unrecruited with an `ALLY` plate; her party frame names her; she can be recruited at full health and the frame reads her live health; she follows the champion; she heals a wounded champion, starts the cooldown, respects it and holds the heal at full health; she can be downed (frame drops to zero) and cannot heal while down, then revives at half health and the frame recovers.
+  - Phase 11 (18): the world stages a touch pad that stays hidden on a
+    keyboard-and-mouse desktop and can be switched on; it stages six action
+    buttons in the right thumb zone with the pause button top-right; the HUD hint
+    swaps to touch wording and moves to the middle of the screen; tapping **ATK**
+    attacks; the floating stick feeds an analog move vector (a full push asks for a
+    sprint, lifting the thumb clears it) and moves the champion; a right-screen
+    drag turns the camera; **JUMP** lifts the champion; **MENU** opens the pause
+    menu; switching the pad off restores the keyboard hint.
 - Main scene `--quit-after 240` frames: no script errors or warnings.
 - Title screen `--quit-after 240` frames: no script errors or warnings.
 - Character-select scene `--quit-after 240` frames: no script errors or warnings.
@@ -432,6 +496,19 @@ does not occur with a real renderer.
 12. Phase 5 feel: **front-end flow** — title → Enter World with the last
     champion, title → Character Select → Back, and the in-world `Esc` menu:
     pause/unpause, mouse release/recapture, and both exits back to the front end.
+13. Mobile: **the touch pad on a real phone** — thumb reach and button size in
+    landscape, stick feel (deadzone, analog speed, the rim push that sprints),
+    drag-look sensitivity, two-finger move + look, and whether `MENU` is easy to
+    hit without leaving the action. Start a desktop run with `--touch` to check
+    the layout and the buttons with a mouse first.
+14. Android: install `build/ashes-of-albion-debug.apk` (`adb install`), then check
+    the launcher icon (no `application/config/icon` is set, so the template's
+    default ships and the exporter prints `No project icon specified`), the
+    letterbox bars on a 20:9 phone and a 4:3 tablet, whether the bottom-left stick
+    fights the gesture-navigation strip, and HUD/touch readability at phone DPI.
+    The APK is arm64-v8a only, so 32-bit devices and the usual x86_64 emulator
+    cannot run it, and split screen is allowed (`resizeableActivity=true`) — check
+    whether the layout survives it.
 
 ## Next recommended milestone
 

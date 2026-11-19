@@ -34,6 +34,7 @@ const SKILL_ICONS := {
 
 var player = null  # the player scene root; untyped so hp/stamina/lock fields resolve
 var companion = null  # the cleric; untyped so her health fields resolve
+var touch_mode := false  # the pad is up: word the hint for thumbs, not keys
 
 @onready var hp_bar: ProgressBar = %HPBar
 @onready var stamina_bar: ProgressBar = %StaminaBar
@@ -83,12 +84,40 @@ func _ready() -> void:
 	objective_panel.visible = false
 
 
+## Touch build: the keyboard hint becomes a one-line thumb guide, and it moves
+## up to the middle of the screen so the stick and the action cluster have the
+## bottom corners to themselves.
+func set_touch_mode(on: bool) -> void:
+	touch_mode = on
+	if touch_mode:
+		hint_label.anchor_right = 1.0
+		hint_label.offset_left = 300.0
+		hint_label.offset_right = -300.0
+		hint_label.offset_top = -212.0
+		hint_label.offset_bottom = -184.0
+		hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	else:
+		hint_label.anchor_right = 0.0
+		hint_label.offset_left = 24.0
+		hint_label.offset_right = 1124.0
+		hint_label.offset_top = -168.0
+		hint_label.offset_bottom = -142.0
+		hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
 func set_class(definition: Dictionary) -> void:
 	## Class name above the skill bar plus the class's skill names and icons;
 	## slots the class has not unlocked yet stay locked (dimmed, padlock). The
-	## controls hint swaps for ranged classes (bow shots instead of combo).
+	## controls hint swaps for ranged classes (bow shots instead of combo) and
+	## for touch builds (thumb controls instead of keys).
 	class_label.text = str(definition.get("name", "")).to_upper()
-	if ClassKit.is_ranged(str(definition.get("id", ""))):
+	var ranged := ClassKit.is_ranged(str(definition.get("id", "")))
+	if touch_mode:
+		hint_label.text = "Left stick move (push to sprint)    Drag to look    " \
+				+ ("ATK shoot    1 Power Shot    2 Tumble" if ranged
+					else "ATK combo    1 Cleave    2 Second Wind") \
+				+ "    LOCK on    JUMP    MENU pauses"
+	elif ranged:
 		hint_label.text = "WASD move    Mouse camera    Shift sprint    Space jump    " \
 				+ "Q lock-on    LMB shoot    1 Power Shot    2 Tumble    Esc menu"
 	else:
