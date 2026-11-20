@@ -1,6 +1,6 @@
 # Ashes of Albion — Phase 0–5 Prototype
 
-A playable Godot 4.3 vertical slice of the AoC-mechanics MMO with Albion-style
+A playable Godot 4.4 vertical slice of the AoC-mechanics MMO with Albion-style
 art direction: it opens on a **title screen** (Enter World / Character Select /
 Settings / Exit), then a **character-select screen** (concept image 3 — character
 slots, a dais preview of your champion in a torchlit cathedral hall, the
@@ -15,7 +15,7 @@ square with the loop reset and your score preserved.
 
 ## Run it
 
-- Open `ashes-of-albion/project.godot` in **Godot 4.3+** (GL Compatibility renderer, no extra assets required) and press **F5**.
+- Open `ashes-of-albion/project.godot` in **Godot 4.4+** (GL Compatibility renderer, no extra assets required) and press **F5**.
 - Boot scene: **`res://scenes/title_screen.tscn`** (the project main scene) → **Enter World** (last committed class) or **Character Select** → pick an archetype → **Enter World**.
 - In the world, `Esc` opens the pause menu: Resume, Character Select or Title Screen.
 - World scene: **`res://scenes/main.tscn`** (loads directly with the last committed class; useful for debugging, defaults to the Fighter).
@@ -364,7 +364,7 @@ ashes-of-albion/
     └── mesh_audit.gd        # null-mesh audit over main + character select (0 found of 339)
 ```
 
-## Verification (headless, Godot 4.3-stable)
+## Verification (headless, Godot 4.4-stable)
 
 - `--import`: clean, no parse errors.
 - `tests/mesh_audit.gd` (main + character select): **339 mesh instances, 0 null meshes**.
